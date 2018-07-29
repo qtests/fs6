@@ -31,6 +31,7 @@ executable file-processor
                        Yadata.LibYahoo
                        Yadata.LibCSV
                        Yadata.LibTS
+                       Yadata.LibAPI
   build-depends:       base >= 4.7 && < 5
                     ,  blaze-markup
                     ,  bytestring
@@ -60,5 +61,6 @@ executable file-processor
                     ,  http-client
                     ,  wreq
                     ,  csv
+                    ,  utf8-string
                     -- yadata : end
                     
