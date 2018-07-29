@@ -1,0 +1,60 @@
+name:                fs6
+version:             0.1.0.0
+-- synopsis:
+-- description:
+homepage:            https://github.com/githubuser/fs6#readme
+license:             BSD3
+license-file:        LICENSE
+author:              Author name here
+maintainer:          example@example.com
+copyright:           2018 Author name here
+category:            Web
+build-type:          Simple
+cabal-version:       >=1.10
+extra-source-files:  README.md
+
+
+executable file-processor
+  hs-source-dirs:      src
+                    ,  src/Yadata
+  main-is:             Main.hs
+  default-language:    Haskell2010
+  ghc-options:         -Wall -threaded -O2
+  other-modules:       Foundation
+                       Dispatch
+                       Config
+                       Model
+                       Handler.Home
+                       Handler.Preview
+                       Handler.Download
+                       Yadata.LibYahoo
+  build-depends:       base >= 4.7 && < 5
+                    ,  blaze-markup
+                    ,  bytestring
+                    ,  conduit
+                    ,  conduit-extra
+                    ,  containers
+                    ,  data-default
+                    ,  hamlet
+                    ,  resourcet
+                    ,  safe
+                    ,  shakespeare
+                    ,  stm
+                    ,  text
+                    ,  yesod
+                    ,  persistent 
+                    -- 
+                    ,  persistent-postgresql
+                    ,  yesod-persistent
+                    ,  monad-logger
+                    --
+                    ,  read-env-var
+                    -- yadata : start
+                    ,  lens
+                    ,  time
+                    ,  regex-pcre-builtin
+                    ,  http-client-tls
+                    ,  http-client
+                    ,  wreq
+                    -- yadata : end
+                    
