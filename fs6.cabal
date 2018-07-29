@@ -27,7 +27,10 @@ executable file-processor
                        Handler.Home
                        Handler.Preview
                        Handler.Download
+                       -- Yadata
                        Yadata.LibYahoo
+                       Yadata.LibCSV
+                       Yadata.LibTS
   build-depends:       base >= 4.7 && < 5
                     ,  blaze-markup
                     ,  bytestring
@@ -56,5 +59,6 @@ executable file-processor
                     ,  http-client-tls
                     ,  http-client
                     ,  wreq
+                    ,  csv
                     -- yadata : end
                     
