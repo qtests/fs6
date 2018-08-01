@@ -21,6 +21,9 @@ import System.ReadEnvVar (lookupEnvDef, readEnvDef)
 import Model
 import Data.Pool
 
+-- DB links
+-- https://github.com/agrafix/users
+-- https://github.com/Daiver/HBlog
 
 doMigrations :: ReaderT SqlBackend (LoggingT (ResourceT IO)) ()
 doMigrations = do 
@@ -33,8 +36,8 @@ doDbStuff = do
     maybeIBM <- getBy $ UniqueTicker "IBM" True
     case maybeIBM of
         Nothing -> do
-                      liftIO $ putStrLn "Just kidding, not really there"
-                      insert $ Company "IBM Inc" "www.ibm.com" "IBM" True
+                      liftIO $ putStrLn "Just kidding, IBM is not really there !"
+                      insert $ Company  "IBM Inc" "www.ibm.com" "IBM" True
                       return ()
         Just (Entity companyId cpny) -> liftIO $ print cpny
  
@@ -52,9 +55,6 @@ main = do
 
     dbFunction doMigrations pool
     dbFunction doDbStuff pool 
-
-    -- runResourceT $ runStderrLoggingT $ flip runSqlPool pool 
-    --    cnyid <- liftIO $ insert $ Company "IBM Inc" "www.ibm.com" "IBM" True
 
     -- Initialize the filestore to an empty map.
     --tstore <- atomically $ newTVar empty
