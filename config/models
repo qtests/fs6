@@ -2,3 +2,17 @@ StoredFile
     name Text
     contentType Text
     content ByteString
+Company
+    name Text 
+    url Text
+    ticker Text
+    status Bool default = True
+    UniqueTicker ticker status
+    deriving Show Read
+TimeSeries
+    tsid CompanyId
+    refdate UTCTime
+    UniqueTS tsid refdate
+    close Double
+    deriving Show Read
+    

@@ -14,6 +14,7 @@ module Yadata.LibTS
     TS(..),
     createTSRaw,
     createTSEither,
+    createTSEither2,
     writeFileTS,
     readFileTS,
     combineTS,
@@ -107,29 +108,21 @@ alignTS ts = do
     return $ alignTS' [] dta
 
 
-backFillTS' :: Num a => [Maybe a] -> [Maybe a]
-backFillTS' [] = []
-backFillTS' (x:[]) = [x]
-backFillTS' (x:y:[]) = if (isNothing y) then (x:x:[]) else  (x:y:[])
-backFillTS' (x:y:rest) = if (isJust x && isNothing y) then backFillTS' (x:x:rest) else  (x:( backFillTS' (y:rest) ))
-
-
 backFillTS :: Num a => Either String [(UTCTime, Maybe a)] -> Either String [(UTCTime, Maybe a)]
 backFillTS ts = do
     ts' <- ts
     let (tsIndex, values) = unzip ts'
-    return $ zip tsIndex (backFillTS' values)
+    return $ zip tsIndex (backFillNothings values)
 
 
 alignAndBackfillTSIndex :: (Eq a, Num a) => [UTCTime] -> [(UTCTime, a)] -> Either String [(UTCTime, a)]
 alignAndBackfillTSIndex index ts = do
     let (tsIndex, values) = unzip $ alignTS' index ts
-    let valuesB = backFillTS' values
-    let values' = if any (== Nothing) valuesB
-                      then reverse (backFillTS' $ reverse valuesB ) else valuesB
+    let values' = backFillNothings2S values
     if all (== Nothing) values'
         then Left "No data!"
         else return $ zip tsIndex ( catMaybes values' )
+
 
 alignAndBackfillTS :: (Eq a, Num a) => [(UTCTime, a)] -> Either String [(UTCTime, a)]
 alignAndBackfillTS = alignAndBackfillTSIndex []
@@ -156,6 +149,19 @@ createTSEither ts = TS abtimes abvalues
         (abtimes, abvalues) = if (isLeft ab ||fmap length ab == Right 0) then ([], []) else unzip (concat $ rights [ab])
 
 
+createTSEither2 :: Either String [String] -> String -> Either String [String]  -> TS Double
+createTSEither2 (Left _) _ _  = TS [] []
+createTSEither2  _ _ (Left _) = TS [] []
+createTSEither2 (Right []) _ _  = TS [] []
+createTSEither2  _ _ (Right []) = TS [] []
+createTSEither2 index dateFormat values = 
+                     createTSRaw (removeAtIndexList nidx dates) (catMaybes numbers )
+    where
+        dates = concat $ rights [fmap (readClean2UTCTime dateFormat) index]
+        numbers = concat $ rights [ (fmap . fmap) read2DoubleMaybe values ]
+        nidx = findIndices isNothing numbers
+
+
 instance Show a => Show (TS a) where
     show (TS times values) = mconcat rows
       where rows = ["Date | Value\n"] ++ zipWith (\x y -> mconcat [show x," | ",show y,"\n"] ) times values
@@ -179,9 +185,12 @@ readFileTS path = do
                 (\x-> fmap (read2UTCTimeMaybe "%Y-%m-%d %H:%M:%S %Z") x)
                                 (getColumnInCSVEither ptxt "Date")
     let date = if any (== Nothing) date_ then [] else catMaybes date_                      
-    let value = either
+    let value_ = either
                 (\_-> [])
-                (\x-> fmap read2Double x) (getColumnInCSVEither ptxt "Value")
+                (\x-> fmap read2DoubleMaybe x) (getColumnInCSVEither ptxt "Value")
+    
+    -- Check better !!!
+    let value = if any (== Nothing) value_ then [] else catMaybes value_
     return $ TS date value
 
 
@@ -194,9 +203,8 @@ combineTS (TS t1 v1) (TS t2 v2) = TS tx vx
         tvMap = foldl (\mm (key, value) -> Map.insert key value mm) Map.empty $ zip t1 v1
         tv2Map = foldl (\mm (key, value) -> Map.insert key value mm) tvMap $ zip t2 v2
         allValues = fmap (\v -> Map.lookup v tv2Map) tx
-        allValuesB = if any (==Nothing) allValues then backFillTS' allValues else allValues
-        allValuesB' = if any (== Nothing) allValuesB then reverse (backFillTS' $ reverse allValuesB ) else allValuesB
-        vx = if all (==Nothing) allValuesB' then [] else catMaybes allValuesB'
+        allValuesB = if any (==Nothing) allValues then backFillNothings2S allValues else allValues
+        vx = if all (==Nothing) allValuesB then [] else catMaybes allValuesB
 
 
 instance (Eq a, Num a) => Semigroup (TS a) where
@@ -299,7 +307,10 @@ readFileXTS path = do
                         (\_ -> [])
                         (\x -> fmap (read2UTCTimeMaybe "%Y-%m-%d %H:%M:%S %Z") x ) $ getColumnInCSV dta "Date"
             let dates = if any (== Nothing) dates_ then [] else catMaybes dates_
-            let restD = (fmap . fmap ) read2Double $ transpose $ delColumnInCSV dta "Date"
+            let restD_ = (fmap . fmap ) read2DoubleMaybe $ transpose $ delColumnInCSV dta "Date"
+
+            -- Check better !!!
+            let restD = if any (== Nothing) (concat restD_) then [] else fmap catMaybes $ restD_ 
             let colnames = if (length dta == 0) then [] else filter (/= "Date") $ head dta
             return $ XTS dates restD colnames
 

@@ -40,17 +40,23 @@ executable file-processor
                     ,  containers
                     ,  data-default
                     ,  hamlet
+                       --
                     ,  resourcet
+                    ,  transformers
+                       --
                     ,  safe
                     ,  shakespeare
                     ,  stm
                     ,  text
+                    ,  time
                     ,  yesod
                     ,  persistent 
                     -- 
                     ,  persistent-postgresql
+                    ,  resource-pool
                     ,  yesod-persistent
                     ,  monad-logger
+                    
                     --
                     ,  read-env-var
                     -- yadata : start

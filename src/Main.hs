@@ -9,6 +9,7 @@ import Database.Persist.Sql
 
 import Control.Monad.Logger
 import Control.Monad.Trans.Resource
+import Control.Monad.Trans.Reader
 
 import Dispatch ()
 import Foundation
@@ -17,14 +18,44 @@ import Model (migrateAll)
 
 import System.ReadEnvVar (lookupEnvDef, readEnvDef)
 
+import Model
+import Data.Pool
+
+
+doMigrations :: ReaderT SqlBackend (LoggingT (ResourceT IO)) ()
+doMigrations = do 
+    runMigration migrateAll
+
+
+doDbStuff :: ReaderT SqlBackend (LoggingT (ResourceT IO)) ()
+doDbStuff = do
+
+    maybeIBM <- getBy $ UniqueTicker "IBM" True
+    case maybeIBM of
+        Nothing -> do
+                      liftIO $ putStrLn "Just kidding, not really there"
+                      insert $ Company "IBM Inc" "www.ibm.com" "IBM" True
+                      return ()
+        Just (Entity companyId cpny) -> liftIO $ print cpny
+ 
+
+dbFunction :: ReaderT SqlBackend (LoggingT (ResourceT IO)) a -> Pool SqlBackend  -> IO a
+dbFunction query pool = runResourceT $ runStderrLoggingT $ runSqlPool query pool
+
+
 main :: IO ()
 main = do
-   
     
     persistConfig <- perstConfig
 
-    pool <- createPoolConfig persistConfig 
-    runResourceT $ runStderrLoggingT $ flip runSqlPool pool $ runMigration migrateAll
+    pool <- createPoolConfig persistConfig
+
+    dbFunction doMigrations pool
+    dbFunction doDbStuff pool 
+
+    -- runResourceT $ runStderrLoggingT $ flip runSqlPool pool 
+    --    cnyid <- liftIO $ insert $ Company "IBM Inc" "www.ibm.com" "IBM" True
+
     -- Initialize the filestore to an empty map.
     --tstore <- atomically $ newTVar empty
 

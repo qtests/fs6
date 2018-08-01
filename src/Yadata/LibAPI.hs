@@ -19,24 +19,40 @@ import Text.CSV
 import Data.Time
 import Data.Maybe
 import Data.Either
+import Data.List
 
 
 priceTimeSeries :: String -> IO (Either String [(UTCTime, Double)] )
 priceTimeSeries ticker = priceTSWithSource "yahoo" ticker
 
 
+transformData :: Either String [String] -> String -> Either String [String] -> Either String [(UTCTime, Double)]
+transformData (Left a) _ _ = Left a
+transformData _ _ (Left a) = Left a
+transformData (Right []) _ _ = Right []
+transformData _ _ (Right []) = Right []
+transformData indexes dateFormat values = do 
+    ids <- indexes
+    vals <- values
+    let dates = readClean2UTCTime dateFormat ids
+    let numbers = fmap read2DoubleMaybe vals
+    let nidx = findIndices isNothing numbers
+    return $ zip (removeAtIndexList nidx dates) (catMaybes numbers ) 
+                 
+
 priceTSWithSource :: String -> String -> IO (Either String [(UTCTime, Double)] )
 priceTSWithSource source ticker
    | source == "yahoo" = do ydata <- getYahooData ticker :: IO (Either YahooException C.ByteString)
                             let dcsv = either (\_ -> Left YStatusCodeException) id
                                      (mapM (\x -> parseCSV "Ticker" (DBLU.toString x )) ydata)
-                            let dates_ = (fmap . fmap) (read2UTCTimeMaybe "%Y-%m-%d") $ getColumnInCSVEither dcsv "Date"
-                            let dates = fmap (\x-> if any (== Nothing) x then [] else catMaybes x) dates_
+                            let dates = getColumnInCSVEither dcsv "Date"
                             let closep = getColumnInCSVEither dcsv "Adj Close"
-                            return $ zip <$> ( dates ) <*> (map read2Double <$> closep)
+                            return $ transformData dates "%Y-%m-%d" closep
 
-   | otherwise         =    return $ Left "priceTSWithSource: Unknown source!"
-
+   | otherwise                    =     return $ Left "priceTSWithSource: Unknown source!"
+-- ------------------------------------------
+-- API
+---------------------------------------------
 
 
 downDataExt :: [String] -> [String] -> XTS Double -> IO (XTS Double, [String])
