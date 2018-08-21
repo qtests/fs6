@@ -10,6 +10,7 @@ import Database.Persist.Sql
 import Data.Pool
 
 import Data.Text (pack)
+import Data.Time
 
 import Control.Monad
 import Control.Monad.Logger
@@ -58,7 +59,8 @@ doDbStuff = do
 addTextFile2DB :: String -> String -> ReaderT SqlBackend (LoggingT (ResourceT IO)) ()
 addTextFile2DB fileName filePath = do
     fileContents <- liftIO $ S.readFile $ filePath ++ fileName
-    insert_ $ StoredFile (pack fileName) "text/plain" fileContents
+    time <- liftIO getCurrentTime
+    insert_ $ StoredFile (pack fileName) "text/plain" fileContents time
 
 
 tsDownloadJob :: [String] -> Int -> ConnectionPool -> IO ()
@@ -85,8 +87,8 @@ main = do
     dbFunction doDbStuff pool 
 
     -- Download price time series
-    let sleepTime = (10^6 * 60 * 5) :: Int
-    -- let sleepTime = (10^6 * 3600 * 24) :: Int
+    -- let sleepTime = (10^6 * 60 * 5) :: Int
+    let sleepTime = (10^6 * 3600 * 4) :: Int
     _ <- forkIO $ tsDownloadJob ["IBM"] sleepTime pool
 
     -- Initialize the filestore to an empty map.
