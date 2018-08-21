@@ -10,6 +10,7 @@ import Database.Persist.Sql
 import Data.Pool
 
 import Data.Text (pack)
+import Data.Time
 
 import Control.Monad
 import Control.Monad.Logger
@@ -58,7 +59,8 @@ doDbStuff = do
 addTextFile2DB :: String -> String -> ReaderT SqlBackend (LoggingT (ResourceT IO)) ()
 addTextFile2DB fileName filePath = do
     fileContents <- liftIO $ S.readFile $ filePath ++ fileName
-    insert_ $ StoredFile (pack fileName) "text/plain" fileContents
+    time <- liftIO getCurrentTime
+    insert_ $ StoredFile (pack fileName) "text/plain" fileContents time
 
 
 tsDownloadJob :: [String] -> Int -> ConnectionPool -> IO ()

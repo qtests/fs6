@@ -2,6 +2,7 @@ StoredFile
     name Text
     contentType Text
     content ByteString
+    created UTCTime "default=now()"
 Company
     name Text 
     url Text

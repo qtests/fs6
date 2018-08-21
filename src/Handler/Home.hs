@@ -14,6 +14,8 @@ import Data.Default
 import Yesod
 import Yesod.Default.Util
 
+import Data.Time
+
 import Foundation
 import Model
 
@@ -47,10 +49,11 @@ postHomeR = do
         -- Extract the file's raw contents into a lazy bytestring. Despite the
         -- type being lazy, calling 'sinkLbs' will fully evaluate the file
         -- contents.
+        time <- liftIO getCurrentTime
         fileBytes <- runResourceT $ fileSource fi $$ sinkLbs
         addFile $ StoredFile (fileName fi) (fileContentType fi)
 --                             fileBytes
-                            (S.pack . L.unpack $ fileBytes)
+                            (S.pack . L.unpack $ fileBytes) time
       _ -> return ()
     -- Users will see an updated file listing in the case of a successful
     -- upload. Should an error occur or invalid form data be supplied the list
