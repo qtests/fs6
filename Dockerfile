@@ -1,4 +1,4 @@
-FROM heroku/heroku:16
+FROM heroku/heroku:18
 
 ENV LANG C.UTF-8
 
@@ -11,6 +11,9 @@ RUN apt-get install -y --assume-yes xz-utils gcc libgmp-dev zlib1g-dev
 RUN apt-get install -y --assume-yes libpq-dev
 # Install convenience utilities, like tree, ping, and vim.
 RUN apt-get install -y --assume-yes tree iputils-ping vim-nox
+
+# Recently added 
+RUN apt-get install -y --assume-yes libc6
 
 # Remove apt caches to reduce the size of our container.
 RUN rm -rf /var/lib/apt/lists/*

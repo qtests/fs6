@@ -85,8 +85,8 @@ main = do
     dbFunction doDbStuff pool 
 
     -- Download price time series
-    let sleepTime = (10^6 * 60 * 5) :: Int
-    -- let sleepTime = (10^6 * 3600 * 24) :: Int
+    -- let sleepTime = (10^6 * 60 * 5) :: Int
+    let sleepTime = (10^6 * 3600 * 4) :: Int
     _ <- forkIO $ tsDownloadJob ["IBM"] sleepTime pool
 
     -- Initialize the filestore to an empty map.
