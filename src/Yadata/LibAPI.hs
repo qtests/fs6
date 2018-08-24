@@ -3,7 +3,8 @@
 
 module Yadata.LibAPI
 (
-    downloadH2File
+       downloadH2File
+    ,  priceTimeSeriesWithDate
 )
 where
 
@@ -23,33 +24,53 @@ import Data.List
 
 
 priceTimeSeries :: String -> IO (Either String [(UTCTime, Double)] )
-priceTimeSeries ticker = priceTSWithSource "yahoo" ticker
+priceTimeSeries ticker = do
+    let  startDate = UTCTime  (fromGregorian 2015 01 01) 0
+    res <- priceTSWithSource "yahoo" ticker startDate
+    case res of
+       Right p  ->  do 
+                    let (res1, res2) = unzip p
+                    return $ Right $ zip res1 ((transpose res2) !! 0)
+       Left p   ->  return $ Left p
+
+        
+priceTimeSeriesWithDate :: String -> UTCTime -> IO (Either String [(UTCTime, [Double])] )
+priceTimeSeriesWithDate ticker startDate = priceTSWithSource "yahoo" ticker startDate
 
 
-transformData :: Either String [String] -> String -> Either String [String] -> Either String [(UTCTime, Double)]
+transformData :: Either String [String] ->  
+                    String -> 
+                        Either String [[String]] -> 
+                            Either String [(UTCTime, [Double])]
 transformData (Left a) _ _ = Left a
-transformData _ _ (Left a) = Left a
+transformData _ _ (Left a)  = Left a
 transformData (Right []) _ _ = Right []
 transformData _ _ (Right []) = Right []
 transformData indexes dateFormat values = do 
     ids <- indexes
     vals <- values
     let dates = readClean2UTCTime dateFormat ids
-    let numbers = fmap read2DoubleMaybe vals
-    let nidx = findIndices isNothing numbers
-    return $ zip (removeAtIndexList nidx dates) (catMaybes numbers ) 
+    let numbers = (fmap . fmap) read2DoubleMaybe vals
+    let nidx = nub . concat $ fmap (findIndices isNothing) numbers 
+    let rmAtIndLst = removeAtIndexList nidx
+    return $ zip ( rmAtIndLst dates) ( transpose $ fmap (catMaybes . rmAtIndLst) numbers ) 
                  
 
-priceTSWithSource :: String -> String -> IO (Either String [(UTCTime, Double)] )
-priceTSWithSource source ticker
-   | source == "yahoo" = do ydata <- getYahooData ticker :: IO (Either YahooException C.ByteString)
+priceTSWithSource :: String -> String -> UTCTime -> IO (Either String [(UTCTime, [Double])] )
+priceTSWithSource source ticker startDate
+   | source == "yahoo" = do endDate <- getCurrentTime
+                            ydata <- getYahooHistoData ticker startDate endDate :: IO (Either YahooException C.ByteString)
                             let dcsv = either (\_ -> Left YStatusCodeException) id
                                      (mapM (\x -> parseCSV "Ticker" (DBLU.toString x )) ydata)
+                            -- Get the right stuff
                             let dates = getColumnInCSVEither dcsv "Date"
-                            let closep = getColumnInCSVEither dcsv "Adj Close"
-                            return $ transformData dates "%Y-%m-%d" closep
+                            let closep = getColumnInCSVEither dcsv "Close"
+                            let adjclosep = getColumnInCSVEither dcsv "Adj Close"
+                            let volume = getColumnInCSVEither dcsv "Volume"
+                            -- return
+                            return $ transformData dates "%Y-%m-%d"( sequenceA [closep, adjclosep, volume] )
 
-   | otherwise                    =     return $ Left "priceTSWithSource: Unknown source!"
+   | otherwise         =    return $ Left "priceTSWithSource: Unknown source!"
 -- ------------------------------------------
 -- API
 ---------------------------------------------
