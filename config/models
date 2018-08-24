@@ -15,5 +15,7 @@ TimeSeries
     refdate UTCTime
     UniqueTS tsid refdate
     close Double
+    adjclose Double
+    volume Double
     deriving Show Read
     
