@@ -72,6 +72,8 @@ tsDownloadJob tickers timeDelay conpool =
         let loadFile = addTextFile2DB "testFile_hd.csv" ""
         dbFunction loadFile conpool 
 
+        -- Add time series to data base
+
         print "TS Download Job: Going to Sleep!"
         threadDelay timeDelay
 
