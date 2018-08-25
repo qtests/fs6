@@ -10,8 +10,8 @@ import Database.Persist.Sql (ConnectionPool, SqlBackend, runSqlPool, runMigratio
 import Data.Pool (Pool(..))
 
 import Data.Text (pack)
-import Data.Time (UTCTime(..), fromGregorian, getCurrentTime)
-import Data.List (transpose, zipWith5, intercalate)
+import Data.Time (UTCTime(..), fromGregorian)
+import Data.List (transpose, zipWith5)
 import Data.Maybe (fromJust, isJust)
  
 import Control.Monad
@@ -20,8 +20,6 @@ import Control.Monad.Trans.Resource (ResourceT, runResourceT)
 import Control.Monad.Trans.Reader (ReaderT)
 import Control.Concurrent (threadDelay, forkIO)
 
--- https://hackage.haskell.org/package/bytestring-0.10.8.2/docs/Data-ByteString.html
-import qualified Data.ByteString as S
 
 import Dispatch ()
 import Foundation
@@ -65,50 +63,26 @@ buildDb = do
 -- Time Series DB Stuff
 -- *********************************************************************************************** -- 
 
-addTextFile2DB :: String -> String -> ReaderT SqlBackend (LoggingT (ResourceT IO)) ()
-addTextFile2DB fileName filePath = do
-    fileContents <- liftIO $ S.readFile $ filePath ++ fileName
-    time <- liftIO getCurrentTime
-    insert_ $ StoredFile (pack fileName) "text/plain" fileContents time
-
-
 sendTS2DB :: String -> Either String [(UTCTime, [Double])] -> ReaderT SqlBackend (LoggingT (ResourceT IO)) ()
+sendTS2DB _ (Left _ ) = return ()
 sendTS2DB _ (Right []) = return ()
-sendTS2DB ticker timeSeries = 
-    case timeSeries of 
-        Left _    -> return ()
-        Right ts  -> do 
-                        maybeCpny <- getBy $ UniqueTicker (pack ticker) True
-                        if (isJust maybeCpny) 
-                            then
-                                do 
-                                    let (Entity companyId cpny) = fromJust maybeCpny
-                                    let (index, dta) = unzip ts
+sendTS2DB ticker (Right timeSeries) = do
+    maybeCpny <- getBy $ UniqueTicker (pack ticker) True 
+    if (isJust maybeCpny)   
+        then
+                let (Entity companyId cpny) = fromJust maybeCpny
+                    (index, dta) = unzip timeSeries
 
-                                    let [close, adjclose, volume] = transpose dta
-                                    let dbts = zipWith5 TimeSeries (repeat companyId) index close adjclose volume 
+                    [close, adjclose, volume] = transpose dta
+                    dbts = zipWith5 TimeSeries (repeat companyId) index close adjclose volume 
                                     
-                                    -- Insert data
-                                    forM_ dbts insertUnique 
+                -- Insert data
+                in forM_ dbts insertUnique 
 
-                                    -- ids <- forM dbts insert
-                                    -- liftIO $ print ids
-                            else
-                                return ()
-
-
-sendTS2File :: String -> Either String [(UTCTime, [Double])] -> IO ()
-sendTS2File filePath timeSeries =
-    case timeSeries of 
-        Left _   -> writeFile filePath ""
-        Right ts -> if length ts > 0 then
-                        let (times, values) = unzip ts
-                            tsString = mconcat $ ["Date,Value\n"] ++ 
-                                    zipWith (\x y -> 
-                                        mconcat [show x,",", intercalate ", " $ fmap show y,"\n"] ) times values
-                        in writeFile filePath tsString
-                    else
-                        writeFile filePath ""
+                -- ids <- forM dbts insert
+                -- liftIO $ print ids
+        else
+            return () 
 
 
 queryIdTSSendEm2File :: String -> String -> ReaderT SqlBackend (LoggingT (ResourceT IO)) ()
@@ -132,7 +106,7 @@ queryIdTSSendEm2File ticker filePath = do
             liftIO $ sendTS2File filePath (Right [])
 
 
--- All batch job
+-- Batch job
 tsDownloadJob :: [String] -> Int -> ConnectionPool -> IO ()
 tsDownloadJob tickers timeDelay conpool = 
     forever $ do

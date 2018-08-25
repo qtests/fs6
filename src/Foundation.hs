@@ -10,22 +10,21 @@
 -- is stored.
 module Foundation where
 
-import Control.Concurrent.STM
+import Control.Concurrent.STM ()
 -- import Data.ByteString.Lazy (ByteString)
-import Data.ByteString (ByteString)
+-- import Data.ByteString (ByteString)
 import Data.Default
-import Data.IntMap (IntMap)
-import qualified Data.IntMap as IntMap
-import Data.Text (Text)
-import qualified Data.Text as Text
+-- import qualified Data.IntMap as IntMap
+-- import Data.Text (Text)
+-- import qualified Data.Text as Text
 import Database.Persist.Sql
-import Text.Hamlet
+import Text.Hamlet 
 import Yesod
 import Yesod.Default.Util
 
 import  Database.Persist.Postgresql(PostgresConf)
 
-import Config
+-- import Config
 import Model
 
 -- | Extend this record to hold any information about uploaded files that you
