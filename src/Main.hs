@@ -8,11 +8,10 @@ module Main where
 import Yesod
 import Database.Persist.Sql (ConnectionPool, SqlBackend, runSqlPool, runMigration)
 import Data.Pool (Pool(..))
-
+import Data.Maybe (fromJust, isJust)
 import Data.Text (pack)
 import Data.Time (UTCTime(..), fromGregorian)
-import Data.List (transpose, zipWith5)
-import Data.Maybe (fromJust, isJust)
+
  
 import Control.Monad
 import Control.Monad.Logger (LoggingT, runStderrLoggingT)
@@ -63,28 +62,6 @@ buildDb = do
 -- Time Series DB Stuff
 -- *********************************************************************************************** -- 
 
-sendTS2DB :: String -> Either String [(UTCTime, [Double])] -> ReaderT SqlBackend (LoggingT (ResourceT IO)) ()
-sendTS2DB _ (Left _ ) = return ()
-sendTS2DB _ (Right []) = return ()
-sendTS2DB ticker (Right timeSeries) = do
-    maybeCpny <- getBy $ UniqueTicker (pack ticker) True 
-    if (isJust maybeCpny)   
-        then
-                let (Entity companyId cpny) = fromJust maybeCpny
-                    (index, dta) = unzip timeSeries
-
-                    [close, adjclose, volume] = transpose dta
-                    dbts = zipWith5 TimeSeries (repeat companyId) index close adjclose volume 
-                                    
-                -- Insert data
-                in forM_ dbts insertUnique 
-
-                -- ids <- forM dbts insert
-                -- liftIO $ print ids
-        else
-            return () 
-
-
 queryIdTSSendEm2File :: String -> String -> ReaderT SqlBackend (LoggingT (ResourceT IO)) ()
 queryIdTSSendEm2File ticker filePath = do
     maybeCpny <- getBy $ UniqueTicker (pack ticker) True
@@ -95,7 +72,7 @@ queryIdTSSendEm2File ticker filePath = do
                 tsRecords <- selectList [TimeSeriesTsid ==. companyId ] [ Asc TimeSeriesRefdate ]
                 
                 -- http://www.jakubkonka.com/2014/01/23/conduit-haskell.html
-                -- Check !!
+-- Check !! --
                 let ts = fmap (\(Entity _ (TimeSeries _ refDate close adjclose vol)) -> 
                                                     (refDate, [close, adjclose, vol]) ) tsRecords
 
@@ -113,18 +90,22 @@ tsDownloadJob tickers timeDelay conpool =
         print ("TS Download Job: Downloading data!" :: String)
 
         -- Get the time series
-        let ticker = tickers !! 0
-        let  startDate = UTCTime (fromGregorian 2015 01 01) 0
-        ts <- priceTimeSeriesWithDate ticker startDate
+        let startDate = UTCTime (fromGregorian 2015 01 01) 0
+        let jobTask ticker = do 
+                print $ "Downloading: " ++ ticker
+                ts <- priceTimeSeriesWithDate ticker startDate
         
-        -- Save time series to file
-        -- sendTS2File "testFile_hts.csv" ts
-        -- dbFunction (addTextFile2DB "testFile_hts.csv" "") conpool 
+                -- Save time series to file
+                -- sendTS2File "testFile_hts.csv" ts
+                -- dbFunction (addTextFile2DB "testFile_hts.csv" "") conpool 
 
-        -- Save to database
-        dbFunction (sendTS2DB ticker ts) conpool 
+                -- Save to database
+                dbFunction (sendTS2DB ticker ts) conpool 
+                
+        forM_ tickers jobTask
 
         -- Query company's Id, time series and save the later two file
+        let ticker = tickers !! 0
         dbFunction (queryIdTSSendEm2File ticker "testFile_htsdb.csv") conpool
         dbFunction (addTextFile2DB "testFile_htsdb.csv" "") conpool 
 
@@ -145,7 +126,7 @@ main = do
     -- Download price time series
     -- let sleepTime = (10^6 * 60 * 5) :: Int
     let sleepTime = (10^6 * 3600 * 6) :: Int
-    _ <- forkIO $ tsDownloadJob ["IBM"] sleepTime pool
+    _ <- forkIO $ tsDownloadJob ["IBM", "MSFT"] sleepTime pool
 
     -- Initialize the filestore to an empty map.
     -- tstore <- atomically $ newTVar empty

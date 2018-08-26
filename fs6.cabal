@@ -42,7 +42,7 @@ executable file-processor
                     ,  conduit-extra
                     ,  containers
                     ,  data-default
-                    ,  hamlet
+                    -- ,  hamlet
                        --
                     ,  resourcet
                     ,  transformers
