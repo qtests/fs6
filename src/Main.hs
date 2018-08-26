@@ -13,7 +13,7 @@ import Data.Text (pack)
 import Data.Time (UTCTime(..), fromGregorian)
 
  
-import Control.Monad
+import Control.Monad (forever, forM_)
 import Control.Monad.Logger (LoggingT, runStderrLoggingT)
 import Control.Monad.Trans.Resource (ResourceT, runResourceT)
 import Control.Monad.Trans.Reader (ReaderT)
@@ -72,13 +72,14 @@ queryIdTSSendEm2File ticker filePath = do
                 tsRecords <- selectList [TimeSeriesTsid ==. companyId ] [ Asc TimeSeriesRefdate ]
                 
                 -- http://www.jakubkonka.com/2014/01/23/conduit-haskell.html
+-- ******** --
 -- Check !! --
+-- ******** --
                 let ts = fmap (\(Entity _ (TimeSeries _ refDate close adjclose vol)) -> 
                                                     (refDate, [close, adjclose, vol]) ) tsRecords
 
                 liftIO $ sendTS2File filePath (Right ts)
                 -- liftIO $ print $ take 5 ts
-                -- return ()
         else
             liftIO $ sendTS2File filePath (Right [])
 
@@ -93,16 +94,24 @@ tsDownloadJob tickers timeDelay conpool =
         let startDate = UTCTime (fromGregorian 2015 01 01) 0
         let jobTask ticker = do 
                 print $ "Downloading: " ++ ticker
+
+                -- *************************************************
+                -- Determine the length of the series date1 vs date2
+                -- *************************************************
+
                 ts <- priceTimeSeriesWithDate ticker startDate
         
                 -- Save time series to file
                 -- sendTS2File "testFile_hts.csv" ts
-                -- dbFunction (addTextFile2DB "testFile_hts.csv" "") conpool 
 
                 -- Save to database
                 dbFunction (sendTS2DB ticker ts) conpool 
                 
         forM_ tickers jobTask
+
+                -- *************************************************
+                -- Think about the report !
+                -- *************************************************
 
         -- Query company's Id, time series and save the later two file
         let ticker = tickers !! 0
