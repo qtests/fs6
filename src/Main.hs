@@ -39,25 +39,6 @@ dbFunction :: ReaderT SqlBackend (LoggingT (ResourceT IO)) a -> Pool SqlBackend 
 dbFunction query pool = runResourceT $ runStderrLoggingT $ runSqlPool query pool
 
 
-buildDb :: ReaderT SqlBackend (LoggingT (ResourceT IO)) ( )
-buildDb = do
-
-    maybeIBM <- getBy $ UniqueTicker "IBM" True
-    case maybeIBM of
-        Nothing -> do
-                      liftIO $ putStrLn "Just kidding, IBM is not really there !"
-                      insert_ $ Company  "IBM Inc" "www.ibm.com" "IBM" True
-                      return ()
-        Just (Entity companyId cpny) -> liftIO $ print cpny
-
-    maybeMSFT <- getBy $ UniqueTicker "MSFT" True
-    case maybeMSFT of
-        Nothing -> do
-                      liftIO $ putStrLn "Just kidding, Microsoft is not really there !"
-                      insert_ $ Company  "Microsoft Inc" "www.microsoft.com" "MSFT" True
-                      return ()
-        Just (Entity companyId cpny) -> liftIO $ print cpny
-
 -- *********************************************************************************************** -- 
 -- Time Series DB Stuff
 -- *********************************************************************************************** -- 
@@ -78,10 +59,10 @@ queryIdTSSendEm2File ticker filePath = do
                 let ts = fmap (\(Entity _ (TimeSeries _ refDate close adjclose vol)) -> 
                                                     (refDate, [close, adjclose, vol]) ) tsRecords
 
-                liftIO $ sendTS2File filePath (Right ts)
+                liftIO $ sendTS2File ticker filePath True (Right ts)
                 -- liftIO $ print $ take 5 ts
         else
-            liftIO $ sendTS2File filePath (Right [])
+            liftIO $ sendTS2File ticker filePath True (Right [])
 
 
 -- Batch job
@@ -89,6 +70,10 @@ tsDownloadJob :: [String] -> Int -> ConnectionPool -> IO ()
 tsDownloadJob tickers timeDelay conpool = 
     forever $ do
         print ("TS Download Job: Downloading data!" :: String)
+
+        -- Initializing the output file
+        let outFile = "testFile_htsdb.csv"
+        writeFile outFile "Date,Value\n"
 
         -- Get the time series
         let startDate = UTCTime (fromGregorian 2015 01 01) 0
@@ -106,6 +91,8 @@ tsDownloadJob tickers timeDelay conpool =
 
                 -- Save to database
                 dbFunction (sendTS2DB ticker ts) conpool 
+
+                dbFunction (queryIdTSSendEm2File ticker outFile) conpool
                 
         forM_ tickers jobTask
 
@@ -114,9 +101,7 @@ tsDownloadJob tickers timeDelay conpool =
                 -- *************************************************
 
         -- Query company's Id, time series and save the later two file
-        let ticker = tickers !! 0
-        dbFunction (queryIdTSSendEm2File ticker "testFile_htsdb.csv") conpool
-        dbFunction (addTextFile2DB "testFile_htsdb.csv" "") conpool 
+        dbFunction (addTextFile2DB outFile "") conpool 
 
         print ("TS Download Job: Going to Sleep!" :: String)
         threadDelay timeDelay
@@ -130,7 +115,8 @@ main = do
     pool <- createPoolConfig persistConfig
 
     dbFunction (runMigration migrateAll) pool
-    dbFunction buildDb pool 
+    flip dbFunction pool (buildDb "IBM Inc" "www.ibm.com" "IBM")
+    flip dbFunction pool (buildDb "Microsoft Inc" "www.microsoft.com" "MSFT")
 
     -- Download price time series
     -- let sleepTime = (10^6 * 60 * 5) :: Int
@@ -150,3 +136,11 @@ main = do
     port <- readEnvDef "PORT" 8080
     -- warp port $ App tident tstore pool persistConfig
     warp port $ App pool persistConfig
+
+
+-- -- To be done
+-- 2. Create DB - 3) DB update schedule
+-- 2. 2 dates - functions?
+-- 3. Update most recent values
+-- 4. News
+

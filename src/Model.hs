@@ -10,7 +10,7 @@ module Model
 where
 
 import Data.ByteString (ByteString)
-import Data.Text (Text)
+import Data.Text (Text, concat, unpack)
 import Database.Persist.Quasi
 import Yesod
 import Data.Typeable ()
@@ -28,6 +28,7 @@ import Data.Maybe (fromJust, isJust)
 import Data.List (transpose, zipWith5)
 import Control.Monad (forM_)
 
+import Yadata.LibAPI (priceTimeSeriesWithDate)
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"]
     $(persistFileWith lowerCaseSettings "config/models")
@@ -40,14 +41,17 @@ addTextFile2DB fileName filePath = do
     insert_ $ StoredFile (pack fileName) "text/plain" fileContents time
 
 
-sendTS2File :: String -> Either String [(UTCTime, [Double])] -> IO ()
-sendTS2File filePath (Left _) = writeFile filePath ""
-sendTS2File filePath (Right []) = writeFile filePath ""
-sendTS2File filePath (Right timeSeries) =
+sendTS2File :: String -> String -> Bool -> Either String [(UTCTime, [Double])] -> IO ()
+sendTS2File _ filePath _ (Left _) = writeFile filePath ""
+sendTS2File _ filePath _ (Right []) = writeFile filePath ""
+sendTS2File ticker filePath append (Right timeSeries) =
     let (times, values) = unzip timeSeries
-        tsString = mconcat $ ["Date,Value\n"] ++ 
-            zipWith (\x y -> mconcat [show x,",", intercalate ", " $ fmap show y,"\n"] ) times values
-    in writeFile filePath tsString
+        (fileWriter, beginingString) = if append then (appendFile, "") else (writeFile ,"Date,Value\n")        
+        tsString = mconcat $ [beginingString] ++ 
+            zipWith3 (\x y z -> mconcat 
+                [show x,",", intercalate ", " (fmap show y), ", ", z, "\n"] ) times values (repeat ticker)
+        
+    in fileWriter filePath tsString
 
 -- Maybe one could take out: maybeCpny <- getBy $ UniqueTicker (pack ticker) True 
 sendTS2DB :: String -> Either String [(UTCTime, [Double])] -> ReaderT SqlBackend (LoggingT (ResourceT IO)) ()
@@ -70,3 +74,23 @@ sendTS2DB ticker (Right timeSeries) = do
                 -- liftIO $ print ids
         else
             return () 
+
+
+buildDb :: Text -> Text -> Text -> ReaderT SqlBackend (LoggingT (ResourceT IO)) ( )
+buildDb name website ticker = do
+
+    maybeIBM <- getBy $ UniqueTicker ticker True
+    case maybeIBM of
+        Nothing -> do
+                        liftIO $ putStrLn $ unpack $ Data.Text.concat ["Just kidding, ", name, " is not really there !"]
+                        companyId <- insert $ Company name website ticker True
+                        let startDate = UTCTime (fromGregorian 2010 01 01) 0
+                        ts' <- liftIO $ priceTimeSeriesWithDate (unpack ticker) startDate
+                        let ts = either (\_ -> []) (id) ts'
+                        let (index, dta) = unzip ts
+
+                        let [close, adjclose, volume] = transpose dta
+                        let dbts = zipWith5 TimeSeries (repeat companyId) index close adjclose volume 
+                        forM_ dbts insert_ 
+
+        Just (Entity companyId cpny) -> liftIO $ print cpny
