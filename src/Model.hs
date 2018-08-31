@@ -68,29 +68,27 @@ sendTS2DB ticker (Right timeSeries) = do
                     dbts = zipWith5 TimeSeries (repeat companyId) index close adjclose volume 
                                     
                 -- Insert data
-                in forM_ dbts insertUnique 
+                in putMany dbts -- forM_ dbts insertUnique 
 
-                -- ids <- forM dbts insert
-                -- liftIO $ print ids
         else
             return () 
 
 
-buildDb :: Text -> Text -> Text -> ReaderT SqlBackend (LoggingT (ResourceT IO)) ( )
-buildDb name website ticker = do
+buildDb :: Text -> Text -> Text -> UTCTime -> ReaderT SqlBackend (LoggingT (ResourceT IO)) ( )
+buildDb name website ticker startDate = do
 
     maybeIBM <- getBy $ UniqueTicker ticker True
     case maybeIBM of
         Nothing -> do
                         liftIO $ putStrLn $ unpack $ Data.Text.concat ["Just kidding, ", name, " is not really there !"]
                         companyId <- insert $ Company name website ticker True
-                        let startDate = UTCTime (fromGregorian 2010 01 01) 0
+
                         ts' <- liftIO $ priceTimeSeriesWithDate (unpack ticker) startDate
                         let ts = either (\_ -> []) (id) ts'
                         let (index, dta) = unzip ts
-
                         let [close, adjclose, volume] = transpose dta
                         let dbts = zipWith5 TimeSeries (repeat companyId) index close adjclose volume 
+                        
                         forM_ dbts insert_ 
 
         Just (Entity companyId cpny) -> liftIO $ print cpny

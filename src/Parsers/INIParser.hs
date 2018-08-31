@@ -4,8 +4,11 @@
       ini
     , Parser (..)
     -- , INI (..)
+    , read2MaybeInt
+    , read2MaybeInteger
+    , read2MaybeDouble
+    , read2MaybeUTCTime
     , lookupSectionVariable
-    , read2UTCTime
   )
   where
 
@@ -17,6 +20,7 @@ import Control.Monad
 import Data.Map hiding (empty)
 import Data.Char
 import Data.Time
+import Text.Read (readMaybe)
 
   
 type Variables = Map String String
@@ -191,8 +195,20 @@ ini = (INI . fromList) <$> many section
 
 --- Processing Functions -----------------------------------
 
-read2UTCTime :: String -> String -> Maybe UTCTime
-read2UTCTime format x = parseTimeM True defaultTimeLocale format x :: Maybe UTCTime
+read2MaybeInt :: String -> Maybe Int
+read2MaybeInt x = readMaybe x :: Maybe Int
+
+
+read2MaybeInteger :: String -> Maybe Integer
+read2MaybeInteger x = readMaybe x :: Maybe Integer
+
+
+read2MaybeDouble :: String -> Maybe Double
+read2MaybeDouble x = readMaybe x :: Maybe Double
+
+
+read2MaybeUTCTime :: String -> String -> Maybe UTCTime
+read2MaybeUTCTime format x = parseTimeM True defaultTimeLocale format x :: Maybe UTCTime
 
 
 lookupSectionVariable :: INI -> String -> String -> Maybe String

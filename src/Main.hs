@@ -8,9 +8,9 @@ module Main where
 import Yesod
 import Database.Persist.Sql (ConnectionPool, SqlBackend, runSqlPool, runMigration)
 import Data.Pool (Pool(..))
-import Data.Maybe (fromJust, isJust)
+import Data.Maybe (fromJust, isJust, isNothing, fromMaybe)
 import Data.Text (pack)
-import Data.Time (UTCTime(..), fromGregorian)
+import Data.Time (UTCTime(..), fromGregorian, getCurrentTime, addGregorianMonthsClip)
 
  
 import Control.Monad (forever, forM_)
@@ -26,6 +26,7 @@ import Config
 import Model
 
 import Yadata.LibAPI
+import Parsers.INIParser
 
 import System.ReadEnvVar (readEnvDef)
 
@@ -66,8 +67,8 @@ queryIdTSSendEm2File ticker filePath = do
 
 
 -- Batch job
-tsDownloadJob :: [String] -> Int -> ConnectionPool -> IO ()
-tsDownloadJob tickers timeDelay conpool = 
+tsDownloadJob :: [String] -> Int -> UTCTime -> ConnectionPool -> IO ()
+tsDownloadJob tickers timeDelay startDate conpool = 
     forever $ do
         print ("TS Download Job: Downloading data!" :: String)
 
@@ -76,13 +77,8 @@ tsDownloadJob tickers timeDelay conpool =
         writeFile outFile "Date,Value\n"
 
         -- Get the time series
-        let startDate = UTCTime (fromGregorian 2015 01 01) 0
         let jobTask ticker = do 
                 print $ "Downloading: " ++ ticker
-
-                -- *************************************************
-                -- Determine the length of the series date1 vs date2
-                -- *************************************************
 
                 ts <- priceTimeSeriesWithDate ticker startDate
         
@@ -96,11 +92,11 @@ tsDownloadJob tickers timeDelay conpool =
                 
         forM_ tickers jobTask
 
-                -- *************************************************
-                -- Think about the report !
-                -- *************************************************
+        -- *************************************************
+        -- Think about the report !
+        -- *************************************************
 
-        -- Query company's Id, time series and save the later two file
+        -- Add the output file to the database
         dbFunction (addTextFile2DB outFile "") conpool 
 
         print ("TS Download Job: Going to Sleep!" :: String)
@@ -114,33 +110,41 @@ main = do
 
     pool <- createPoolConfig persistConfig
 
+    -- Config.ini
+    iniContents' <- readFile ("./config/config.ini")
+    let iniContents = runParser ini iniContents'
+    
+    if (isNothing iniContents) 
+        then 
+            error "Could not parse INI file !"
+        else
+            do 
+                print "Config.ini: "
+                print iniContents
+    
+    let env = fst $ fromJust iniContents
+
+    -- Time Series start date
+    let stDateString = fromMaybe "2000-01-01" $ lookupSectionVariable env "TimeSeries" "startDateBase"
+    let startDate = fromJust $ read2MaybeUTCTime "%Y-%m-%d" stDateString
+                    
+    let varDateString = fromMaybe "3" $ lookupSectionVariable env "TimeSeries" "startDateVariable"
+    let varDate = fromJust $ read2MaybeInteger varDateString
+    timeNow <- getCurrentTime 
+    let refreshPeriod = UTCTime (addGregorianMonthsClip (-varDate) (utctDay timeNow)) 0 
+        
+    
+    -- Build the initial DB
     dbFunction (runMigration migrateAll) pool
-    flip dbFunction pool (buildDb "IBM Inc" "www.ibm.com" "IBM")
-    flip dbFunction pool (buildDb "Microsoft Inc" "www.microsoft.com" "MSFT")
+    flip dbFunction pool (buildDb "IBM Inc" "www.ibm.com" "IBM" startDate)
+    flip dbFunction pool (buildDb "Microsoft Inc" "www.microsoft.com" "MSFT" startDate)
 
-    -- Download price time series
-    -- let sleepTime = (10^6 * 60 * 5) :: Int
+
+    -- Download/Update price time series
     let sleepTime = (10^6 * 3600 * 6) :: Int
-    _ <- forkIO $ tsDownloadJob ["IBM", "MSFT"] sleepTime pool
+    _ <- forkIO $ tsDownloadJob ["IBM", "MSFT"] sleepTime refreshPeriod pool
 
-    -- Initialize the filestore to an empty map.
-    -- tstore <- atomically $ newTVar empty
-
-    -- The first uploaded file should have an ID of 0.
-    -- tident <- atomically $ newTVar 0
-
-    -- warpEnv starts the Warp server over a port defined by an environment
-    -- variable. To launch the app on a specific port use 'warp'.
-    -- warpEnv $ App tident tstore
-
+ 
     port <- readEnvDef "PORT" 8080
     -- warp port $ App tident tstore pool persistConfig
     warp port $ App pool persistConfig
-
-
--- -- To be done
--- 2. Create DB - 3) DB update schedule
--- 2. 2 dates - functions?
--- 3. Update most recent values
--- 4. News
-
