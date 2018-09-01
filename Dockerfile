@@ -49,6 +49,8 @@ RUN stack -v --no-terminal build
 RUN stack --no-terminal --local-bin-path /opt/fs6/bin install
 
 # Remove source code.
+RUN mkdir -p /opt/fs6/config
+COPY ./config/config.ini /opt/fs6/config/config.ini
 #RUN rm -rf /opt/fs6/src
 
 # Add the apiuser and setup their PATH.
