@@ -123,7 +123,9 @@ checkStorySaved :: Story -> ReaderT SqlBackend (LoggingT (ResourceT IO)) ()
 checkStorySaved story = do
     insertedStory <- selectFirst [StoryHashId ==. storyHashId story] []
     case insertedStory of
-        Nothing ->  insert_ story
+        Nothing ->  do
+                        _ <- insertUnique story
+                        return ()
         Just _  ->  return ()
 
 -- checkStorySaved :: Story -> IO (Maybe (Entity Story))

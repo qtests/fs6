@@ -21,6 +21,7 @@ TimeSeries
 Story
     hashId Int
     title Text
+    UniqueTitle title
     link Text
     content Text Maybe
     image Text Maybe
