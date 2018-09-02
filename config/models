@@ -18,4 +18,13 @@ TimeSeries
     adjclose Double
     volume Double
     deriving Show Read
+Story
+    hashId Int
+    title Text
+    link Text
+    content Text Maybe
+    image Text Maybe
+    created UTCTime "default=now()"
+    deriving Eq Show
+    
     

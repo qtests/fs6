@@ -35,6 +35,11 @@ executable file-processor
                        Yadata.LibAPI
                        -- Utils/Parsers
                        Parsers.INIParser
+                       -- News
+                       Text.HTML.Freader
+                       Text.HTML.Fscraper
+                       Text.NewsAPI
+
   build-depends:       base >= 4.7 && < 5
                     ,  blaze-markup
                     ,  bytestring
@@ -61,7 +66,7 @@ executable file-processor
                     ,  monad-logger
                     --
                     ,  read-env-var
-                    -- yadata : start
+                    -- yadata
                     ,  lens
                     ,  time
                     ,  regex-pcre-builtin
@@ -70,5 +75,12 @@ executable file-processor
                     ,  wreq
                     ,  csv
                     ,  utf8-string
-                    -- yadata : end
-                    
+                    -- News
+                    , aeson
+                    , hashable
+                    , safe-exceptions
+                    , text
+                    , scalpel
+                    , xml-conduit
+                    , mtl
+                    -- , monad-control

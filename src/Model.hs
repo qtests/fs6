@@ -5,6 +5,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
+-- News
+{-# LANGUAGE FlexibleInstances          #-}
 
 module Model 
 where
@@ -12,6 +14,7 @@ where
 import Data.ByteString (ByteString)
 import Data.Text (Text, concat, unpack)
 import Database.Persist.Quasi
+import qualified Database.Persist as P
 import Yesod
 import Data.Typeable ()
 import Data.Time
@@ -27,6 +30,10 @@ import Data.List (intercalate)
 import Data.Maybe (fromJust, isJust)
 import Data.List (transpose, zipWith5)
 import Control.Monad (forM_)
+
+-- News
+import Data.Aeson
+import Data.Hashable
 
 import Yadata.LibAPI (priceTimeSeriesWithDate)
 
@@ -92,3 +99,38 @@ buildDb name website ticker startDate = do
                         forM_ dbts insert_ 
 
         Just (Entity companyId cpny) -> liftIO $ print cpny
+
+-- **********************************************************************
+-- News
+-- **********************************************************************
+
+instance ToJSON (P.Entity Story) where
+    toJSON (P.Entity _ p) = object
+        [ "title"   .= storyTitle p
+        , "link"    .= storyLink p
+        , "content" .= storyContent p
+        , "image"   .= storyImage p
+        ]
+
+
+makeHash
+  :: Hashable a
+  => a -> Int
+makeHash = hash
+
+
+checkStorySaved :: Story -> ReaderT SqlBackend (LoggingT (ResourceT IO)) ()
+checkStorySaved story = do
+    insertedStory <- selectFirst [StoryHashId ==. storyHashId story] []
+    case insertedStory of
+        Nothing ->  insert_ story
+        Just _  ->  return ()
+
+-- checkStorySaved :: Story -> IO (Maybe (Entity Story))
+-- checkStorySaved story = do
+--   insertedStory <- runDb $ selectFirst [StoryHashId ==. storyHashId story] []
+--   case insertedStory of
+--     Nothing -> do
+--       _ <- runDb $ insert story
+--       return Nothing
+--     Just s -> return $ Just s

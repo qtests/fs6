@@ -133,3 +133,9 @@ getById ident = do
     case mfile of
       Nothing -> notFound
       Just file -> return file
+
+-- ******************************************************************************
+-- News
+-- ******************************************************************************
+getStoryList :: Handler [Entity Story]
+getStoryList = runDB $ selectList [] []

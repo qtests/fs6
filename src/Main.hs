@@ -10,7 +10,7 @@ import Database.Persist.Sql (ConnectionPool, SqlBackend, runSqlPool, runMigratio
 import Data.Pool (Pool(..))
 import Data.Maybe (fromJust, isJust, isNothing, fromMaybe)
 import Data.Text (pack)
-import Data.Time (UTCTime(..), fromGregorian, getCurrentTime, addGregorianMonthsClip)
+import Data.Time (UTCTime(..), getCurrentTime, addGregorianMonthsClip)
 
  
 import Control.Monad (forever, forM_)
@@ -18,6 +18,7 @@ import Control.Monad.Logger (LoggingT, runStderrLoggingT)
 import Control.Monad.Trans.Resource (ResourceT, runResourceT)
 import Control.Monad.Trans.Reader (ReaderT)
 import Control.Concurrent (threadDelay, forkIO)
+import System.ReadEnvVar (readEnvDef)
 
 
 import Dispatch ()
@@ -28,7 +29,8 @@ import Model
 import Yadata.LibAPI
 import Parsers.INIParser
 
-import System.ReadEnvVar (readEnvDef)
+-- News
+import Text.NewsAPI
 
 
 -- DB links
@@ -38,6 +40,30 @@ import System.ReadEnvVar (readEnvDef)
 
 dbFunction :: ReaderT SqlBackend (LoggingT (ResourceT IO)) a -> Pool SqlBackend  -> IO a
 dbFunction query pool = runResourceT $ runStderrLoggingT $ runSqlPool query pool
+
+
+-- *********************************************************************************************** -- 
+-- News
+-- *********************************************************************************************** -- 
+
+insertStoriesReuters :: Int -> ConnectionPool -> IO ()
+insertStoriesReuters timeDelay pool = 
+    forever $ do
+        print ("News Job: Downloading stories!" :: String)
+        now <- getCurrentTime
+        topnews <- getTopStory
+        fnews <- getFeatureStories
+        snews <- getSideStories
+        rssnews <- liftIO $ parseXml "http://feeds.reuters.com/reuters/businessNews"
+        let topstories = mapM convertImageStory topnews now
+            fstories = mapM convertImageStory fnews now
+            sstories = mapM convertStory snews now
+            rssstories = mapM convertRssFeed rssnews now
+            allS = topstories <> fstories <> sstories <> rssstories
+        mapM_ (\s -> dbFunction (checkStorySaved s) pool) allS
+        
+        print ("News Job: Going to Sleep!" :: String)
+        threadDelay timeDelay
 
 
 -- *********************************************************************************************** -- 
@@ -119,7 +145,7 @@ main = do
             error "Could not parse INI file !"
         else
             do 
-                print "Config.ini: "
+                print ("Config.ini: " :: String)
                 print iniContents
     
     let env = fst $ fromJust iniContents
@@ -140,17 +166,21 @@ main = do
     flip dbFunction pool (buildDb "IBM Inc."        "www.ibm.com"       "IBM"  startDate)
     flip dbFunction pool (buildDb "Microsoft Inc."  "www.microsoft.com" "MSFT" startDate)
 
-    flip dbFunction pool (buildDb "Facebook, Inc."   "www.facebook.com" "FB"    startDate)
-    flip dbFunction pool (buildDb "Amazon.com, Inc." "www.amazon.com"   "AMZN"  startDate)
-    flip dbFunction pool (buildDb "Netflix, Inc."    "www.netflix.com"  "NFLX"  startDate)
-    flip dbFunction pool (buildDb "Alphabet Inc."    "www.abc.xyz"      "GOOGL" startDate)
+    -- flip dbFunction pool (buildDb "Facebook, Inc."   "www.facebook.com" "FB"    startDate)
+    -- flip dbFunction pool (buildDb "Amazon.com, Inc." "www.amazon.com"   "AMZN"  startDate)
+    -- flip dbFunction pool (buildDb "Netflix, Inc."    "www.netflix.com"  "NFLX"  startDate)
+    -- flip dbFunction pool (buildDb "Alphabet Inc."    "www.abc.xyz"      "GOOGL" startDate)
 
 
     -- Download/Update price time series
-    let sleepTime = (10^6 * 3600 * 6) :: Int
-    _ <- forkIO $ tsDownloadJob ["IBM", "MSFT"] sleepTime refreshPeriod pool
+    let sleepTimeTS = (10^6 * 3600 * 6) :: Int
+    _ <- forkIO $ tsDownloadJob ["IBM", "MSFT"] sleepTimeTS refreshPeriod pool
 
+    -- Stories
+    let sleepTimeSR = (10^6 * 60 * 20) :: Int
+    _ <- forkIO $ insertStoriesReuters sleepTimeSR pool
  
+    -- Starting the web server
     port <- readEnvDef "PORT" 8080
     -- warp port $ App tident tstore pool persistConfig
     warp port $ App pool persistConfig
