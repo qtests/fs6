@@ -136,8 +136,14 @@ main = do
     
     -- Build the initial DB
     dbFunction (runMigration migrateAll) pool
-    flip dbFunction pool (buildDb "IBM Inc" "www.ibm.com" "IBM" startDate)
-    flip dbFunction pool (buildDb "Microsoft Inc" "www.microsoft.com" "MSFT" startDate)
+
+    flip dbFunction pool (buildDb "IBM Inc."        "www.ibm.com"       "IBM"  startDate)
+    flip dbFunction pool (buildDb "Microsoft Inc."  "www.microsoft.com" "MSFT" startDate)
+
+    flip dbFunction pool (buildDb "Facebook, Inc."   "www.facebook.com" "FB"    startDate)
+    flip dbFunction pool (buildDb "Amazon.com, Inc." "www.amazon.com"   "AMZN"  startDate)
+    flip dbFunction pool (buildDb "Netflix, Inc."    "www.netflix.com"  "NFLX"  startDate)
+    flip dbFunction pool (buildDb "Alphabet Inc."    "www.abc.xyz"      "GOOGL" startDate)
 
 
     -- Download/Update price time series
