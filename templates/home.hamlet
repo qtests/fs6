@@ -1,5 +1,5 @@
 
-<h2>Previously submitted files
+<h2>Submited Report Files
 $if null storedFiles
   <p>No files have been uploaded yet.
 $else
