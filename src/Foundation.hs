@@ -138,4 +138,4 @@ getById ident = do
 -- News
 -- ******************************************************************************
 getStoryList :: Handler [Entity Story]
-getStoryList = runDB $ selectList [] []
+getStoryList = runDB $ selectList [] [] 

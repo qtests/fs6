@@ -1,3 +1,4 @@
+
 <h2>Previously submitted files
 $if null storedFiles
   <p>No files have been uploaded yet.
@@ -6,7 +7,8 @@ $else
 $#    $forall (ident, StoredFile filename _ _) <- storedFiles
     $forall (Entity ident (StoredFile filename _ _ timeCreated)) <- storedFiles
       <li>
-        <a href=@{PreviewR ident}>#{filename}, #{show timeCreated}
+        #{show timeCreated} 
+        <a href=@{PreviewR ident}>#{filename}
 
 <h2>Latest News
 $if null storedStories
@@ -15,7 +17,8 @@ $else
   <ol>
     $forall (Entity _ (Story hashId_ title_ link_ content_ image_ timeCreated)) <- storedStories
       <li>
-        #{title_}, #{show timeCreated} <br> #{link_} 
+          #{show timeCreated} 
+          <a href=#{link_}>#{title_}
 
 <h2>Submit new file
 <form method=post action=@{HomeR} enctype=#{formEncType}>
