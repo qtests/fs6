@@ -177,7 +177,7 @@ main = do
     _ <- forkIO $ tsDownloadJob ["IBM", "MSFT"] sleepTimeTS refreshPeriod pool
 
     -- Stories
-    let sleepTimeSR = (10^6 * 60 * 20) :: Int
+    let sleepTimeSR = (10^6 * 60 * 30) :: Int
     _ <- forkIO $ insertStoriesReuters sleepTimeSR pool
  
     -- Starting the web server
