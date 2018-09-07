@@ -33,7 +33,7 @@ getHomeR = do
     storedStories <- getStoryList
     
     defaultLayout $ do
-        setTitle "File Processor"
+        setTitle "Dashboard"
         -- Load the widget defined in "templates/home.hamlet".
         $(widgetFileNoReload def "home")
 

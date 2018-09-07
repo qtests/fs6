@@ -28,7 +28,7 @@ getPreviewR :: Key StoredFile -> Handler Html
 getPreviewR ident = do
     StoredFile filename contentType bytes timeCreated <- getById ident
     defaultLayout $ do
-        setTitle . toMarkup $ "File Processor - " `Text.append` filename
+        setTitle . toMarkup $ "Dashboard - " `Text.append` filename
         previewBlock <- liftIO $ preview ident contentType bytes
         $(widgetFileNoReload def "preview")
 
