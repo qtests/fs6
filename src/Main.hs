@@ -104,15 +104,15 @@ tsDownloadJob tickers timeDelay startDate conpool =
 
 
 
-getDBTS2XTS :: String -> ConnectionPool -> IO (XTS Double)
+getDBTS2XTS :: String -> ConnectionPool -> IO ( ([UTCTime], [[Double]], [String]) )
 getDBTS2XTS ticker conpool = do
     cid <- dbFunction (getCompanyID ticker True) conpool
     case cid of 
-        Nothing   -> return $ XTS [] [] []
+        Nothing   -> return $ ([], [], [])
         Just id   -> do
             ts <- dbFunction (getCompanyRawTS id) conpool
             let (index, dta) = unzip ts
-            return $ XTS index (transpose dta) ["Close", "Adjclose", "Volume"]
+            return ( index,  (transpose dta),  ["Close", "Adjclose", "Volume"])
 
 
 main :: IO ()
@@ -170,11 +170,13 @@ main = do
     
     -- Picture
     let sectorTS = ["XLB", "XLE", "XLF", "XLI", "XLP", "XLU", "XLV", "XLY", "XLK"]
-    xts <- getDBTS2XTS "IBM" pool
-    -- Get close price ts
+    let sTicker = "XLB"
+    (timeId, dta, colNames) <- getDBTS2XTS sTicker pool
+    let ts = TS timeId (dta !! 0)
+    let xts = combineXTSnTS (XTS [] [] []) sTicker ts
     -- Do the same above for all tickers
     -- Plot picture
-    print xts 
+    plotXTS "testFile_picture.png" xts
 
     
 

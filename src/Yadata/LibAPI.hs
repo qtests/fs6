@@ -6,7 +6,9 @@ module Yadata.LibAPI
        downloadH2File
     ,  priceTimeSeriesWithDate
     ,  plotXTS
-    , XTS(..)
+    ,  combineXTSnTS
+    ,  XTS(..)
+    ,  TS(..)
 )
 where
 
