@@ -11,7 +11,7 @@ import Data.Pool (Pool(..))
 import Data.Maybe (fromJust, isJust, isNothing, fromMaybe)
 import Data.Text (pack)
 import Data.Time (UTCTime(..), fromGregorian, getCurrentTime, addGregorianMonthsClip)
-
+import Data.List (transpose)
  
 import Control.Monad (forever, forM_)
 import Control.Monad.Logger (LoggingT, runStderrLoggingT)
@@ -103,6 +103,18 @@ tsDownloadJob tickers timeDelay startDate conpool =
         threadDelay timeDelay
 
 
+
+getDBTS2XTS :: String -> ConnectionPool -> IO (XTS Double)
+getDBTS2XTS ticker conpool = do
+    cid <- dbFunction (getCompanyID ticker True) conpool
+    case cid of 
+        Nothing   -> return $ XTS [] [] []
+        Just id   -> do
+            ts <- dbFunction (getCompanyRawTS id) conpool
+            let (index, dta) = unzip ts
+            return $ XTS index (transpose dta) [ticker]
+
+
 main :: IO ()
 main = do
     
@@ -140,17 +152,32 @@ main = do
     flip dbFunction pool (buildDb "IBM Inc."        "www.ibm.com"       "IBM"  startDate)
     flip dbFunction pool (buildDb "Microsoft Inc."  "www.microsoft.com" "MSFT" startDate)
 
-    flip dbFunction pool (buildDb "Facebook, Inc."   "www.facebook.com" "FB"    startDate)
-    flip dbFunction pool (buildDb "Amazon.com, Inc." "www.amazon.com"   "AMZN"  startDate)
-    flip dbFunction pool (buildDb "Netflix, Inc."    "www.netflix.com"  "NFLX"  startDate)
-    flip dbFunction pool (buildDb "Alphabet Inc."    "www.abc.xyz"      "GOOGL" startDate)
+    flip dbFunction pool (buildDb "SPDR Materials"      "http://www.spdrs.com" "XLB"   startDate)
+    flip dbFunction pool (buildDb "SPDR Energy"         "http://www.spdrs.com" "XLE"   startDate)
+    flip dbFunction pool (buildDb "SPDR Finance"        "http://www.spdrs.com" "XLF"   startDate)
+    flip dbFunction pool (buildDb "SPDR Industrials"    "http://www.spdrs.com" "XLI"   startDate)
+    flip dbFunction pool (buildDb "SPDR Consumer Staples" "http://www.spdrs.com" "XLP" startDate)
+    flip dbFunction pool (buildDb "SPDR Utilities"      "http://www.spdrs.com" "XLU"   startDate)
+    flip dbFunction pool (buildDb "SPDR Health Care"    "http://www.spdrs.com" "XLV"   startDate)
+    flip dbFunction pool (buildDb "SPDR Consumer Discretionary" "http://www.spdrs.com" "XLY" startDate)
+    flip dbFunction pool (buildDb "SPDR Technology"     "http://www.spdrs.com"         "XLK" startDate)
 
 
     -- Download/Update price time series
     let sleepTime = (10^6 * 3600 * 6) :: Int
     _ <- forkIO $ tsDownloadJob ["IBM", "MSFT"] sleepTime refreshPeriod pool
 
- 
+    
+    -- Picture
+    let sectorTS = ["XLB", "XLE", "XLF", "XLI", "XLP", "XLU", "XLV", "XLY", "XLK"]
+    xts <- getDBTS2XTS "IBM" pool
+    -- Get close price ts
+    -- Do the same above for all tickers
+    -- Plot picture
+    print xts 
+
+    
+
     port <- readEnvDef "PORT" 8080
     -- warp port $ App tident tstore pool persistConfig
     warp port $ App pool persistConfig

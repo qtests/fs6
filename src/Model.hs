@@ -77,8 +77,8 @@ sendTS2DB ticker (Right timeSeries) = do
 buildDb :: Text -> Text -> Text -> UTCTime -> ReaderT SqlBackend (LoggingT (ResourceT IO)) ( )
 buildDb name website ticker startDate = do
 
-    maybeIBM <- getBy $ UniqueTicker ticker True
-    case maybeIBM of
+    maybeCompany <- getBy $ UniqueTicker ticker True
+    case maybeCompany of
         Nothing -> do
                         liftIO $ putStrLn $ unpack $ Data.Text.concat ["Just kidding, ", name, " is not really there !"]
                         companyId <- insert $ Company name website ticker True
@@ -92,3 +92,25 @@ buildDb name website ticker startDate = do
                         forM_ dbts insert_ 
 
         Just (Entity companyId cpny) -> liftIO $ print cpny
+
+
+-- Get company id from the Company table
+getCompanyID :: String -> Bool ->  ReaderT SqlBackend (LoggingT (ResourceT IO)) ( Maybe (Key Company) )
+getCompanyID ticker active = do 
+    maybeCpny <- getBy $ UniqueTicker (pack ticker) active
+    if (isJust maybeCpny)   
+        then
+            return $ fmap(\(Entity companyId _) -> companyId) maybeCpny
+        else
+            return Nothing
+
+
+-- Query time series from TimeSeries table
+getCompanyRawTS :: Key Company -> ReaderT SqlBackend (LoggingT (ResourceT IO)) ( [(UTCTime, [Double])] )
+getCompanyRawTS companyId = do
+    tsRecords <- selectList [TimeSeriesTsid ==. companyId ] [ Asc TimeSeriesRefdate ]
+    return $ fmap (\(Entity _ (TimeSeries _ refDate close adjclose vol)) -> 
+                                                        (refDate, [close, adjclose, vol]) ) tsRecords
+
+
+

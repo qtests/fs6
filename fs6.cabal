@@ -70,5 +70,8 @@ executable file-processor
                     ,  wreq
                     ,  csv
                     ,  utf8-string
+                    ,  Chart
+                    ,  Chart-diagrams
+                    ,  Chart-cairo
                     -- yadata : end
                     
