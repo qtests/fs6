@@ -112,7 +112,7 @@ getDBTS2XTS ticker conpool = do
         Just id   -> do
             ts <- dbFunction (getCompanyRawTS id) conpool
             let (index, dta) = unzip ts
-            return $ XTS index (transpose dta) [ticker]
+            return $ XTS index (transpose dta) ["Close", "Adjclose", "Volume"]
 
 
 main :: IO ()
