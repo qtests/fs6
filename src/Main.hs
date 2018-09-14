@@ -6,6 +6,7 @@ module Main where
 -- import Control.Concurrent.STM
 -- import Data.IntMap
 import Yesod
+import Yesod.Static
 import Database.Persist.Sql (ConnectionPool, SqlBackend, runSqlPool, runMigration)
 import Data.Pool (Pool(..))
 import Data.Maybe (fromJust, isJust, isNothing, fromMaybe)
@@ -13,7 +14,7 @@ import Data.Text (pack)
 import Data.Time (UTCTime(..), fromGregorian, getCurrentTime, addGregorianMonthsClip)
 import Data.List (transpose)
  
-import Control.Monad (forever, forM_)
+import Control.Monad (forever, forM_, forM)
 import Control.Monad.Logger (LoggingT, runStderrLoggingT)
 import Control.Monad.Trans.Resource (ResourceT, runResourceT)
 import Control.Monad.Trans.Reader (ReaderT)
@@ -169,17 +170,21 @@ main = do
 
     
     -- Picture
-    let sectorTS = ["XLB", "XLE", "XLF", "XLI", "XLP", "XLU", "XLV", "XLY", "XLK"]
-    let sTicker = "XLB"
-    (timeId, dta, colNames) <- getDBTS2XTS sTicker pool
-    let ts = TS timeId (dta !! 0)
-    let xts = combineXTSnTS (XTS [] [] []) sTicker ts
+    let sectorTks = ["XLB", "XLE", "XLF", "XLI", "XLP", "XLU", "XLV", "XLY", "XLK"]
+    let sectorNames = ["Materials", "Energy", "Finance", "Industrials", "Consumer Staples", 
+                        "Utilities", "Health Care",  "Consumer Discretionary", "Technology"]
+    xtsList <- forM sectorTks $ \tk -> do 
+                                        (timeId, dta, _) <- getDBTS2XTS tk pool
+                                        return $ TS timeId (dta !! 0)
+    let xts = foldl (\start (tk, ts) -> combineXTSnTS start tk ts) (XTS [] [] []) (zip sectorNames xtsList)
     -- Do the same above for all tickers
+
+    
     -- Plot picture
     plotXTS "testFile_picture.png" xts
 
-    
+    static@(Static settings) <- static "."
 
     port <- readEnvDef "PORT" 8080
     -- warp port $ App tident tstore pool persistConfig
-    warp port $ App pool persistConfig
+    warp port $ App pool persistConfig static

@@ -32,6 +32,7 @@ import Data.Time
 import Data.Maybe
 import Data.Either
 import Data.List
+import Data.Colour
 
 import Control.Monad (forM_)
 
@@ -122,13 +123,23 @@ downloadH2File tickers = do
 
 -- downloadH2File ["IBM", "MSFT", "AAPL", "KO" ]
 
+myLine :: String -> [[(x,y)]] -> Colour Double -> EC l (PlotLines x y)
+myLine title values col = liftEC $ do
+    let color = opaque col -- <- takeColor
+    plot_lines_title .= title
+    plot_lines_values .= values
+    plot_lines_style . line_color .= color
+
+
+
 plotXTS :: (Num a, PlotValue a)=> String -> XTS a -> IO ()
 plotXTS plotFileName (XTS xindex xdata xcolNames) = do
+    let colourNames = cycle [blue,green,red, black, turquoise, teal, magenta, orange, brown, pink, violet]
     let xin = fmap (utcToLocalTime utc) xindex
     let prepData = fmap (\x-> zip xin x ) xdata
     toFile def plotFileName $ do
-        forM_ (zip xcolNames prepData) $ \(cname, dta) -> do
-            plot (line cname [ dta ])
+        forM_ (zip3 xcolNames prepData colourNames) $ \(cname, dta, cl) -> do
+            plot (myLine cname [ dta ] cl)
     return ()
 
 

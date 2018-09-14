@@ -53,6 +53,7 @@ executable file-processor
                     ,  text
                     ,  time
                     ,  yesod
+                    ,  yesod-static
                     ,  persistent 
                     -- 
                     ,  persistent-postgresql
@@ -73,5 +74,6 @@ executable file-processor
                     ,  Chart
                     ,  Chart-diagrams
                     ,  Chart-cairo
+                    ,  colour
                     -- yadata : end
                     

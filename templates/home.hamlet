@@ -1,3 +1,6 @@
+
+ <img src=@{StaticR testFile_picture_png} alt="Financial sectors' price graph" height="600" width="800"/> 
+
 <h2>Previously submitted files
 $if null storedFiles
   <p>No files have been uploaded yet.

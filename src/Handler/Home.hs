@@ -14,6 +14,7 @@ import Data.Default
 import Yesod
 import Yesod.Default.Util
 
+
 import Data.Time
 
 import Foundation
@@ -30,6 +31,7 @@ getHomeR = do
     -- getList returns a list of identifiers and their associated files. We
     -- use this to generate hyperlinks to summary pages.
     storedFiles <- getList
+    
     defaultLayout $ do
         setTitle "File Processor"
         -- Load the widget defined in "templates/home.hamlet".

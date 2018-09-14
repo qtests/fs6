@@ -21,6 +21,7 @@ import Database.Persist.Sql
 import Text.Hamlet 
 import Yesod
 import Yesod.Default.Util
+import Yesod.Static
 
 import  Database.Persist.Postgresql(PostgresConf)
 
@@ -61,6 +62,7 @@ import Model
 data App = App
     {   connPool :: ConnectionPool
       , persistConfig ::  PostgresConf
+      , getStatic :: Static
     }
 
 instance Yesod App where
@@ -88,6 +90,8 @@ instance YesodPersistRunner App where
 -- interfacing our foundation type with Yesod. The "Dispatch" module contains
 -- a call to 'mkYesodDispatch', which performs the other half of boilerplate
 -- generation.
+staticFilesList "." ["testFile_picture.png"] 
+
 mkYesodData "App" $(parseRoutesFile "config/routes")
 
 -- | Use this function to generate a unique identifier for a newly uploaded
