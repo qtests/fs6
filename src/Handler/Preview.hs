@@ -26,7 +26,7 @@ import Model
 -- getPreviewR :: Int -> Handler Html
 getPreviewR :: Key StoredFile -> Handler Html
 getPreviewR ident = do
-    StoredFile filename contentType bytes timeCreated <- getById ident
+    StoredFile filename contentType bytes _ _ timeCreated <- getById ident
     defaultLayout $ do
         setTitle . toMarkup $ "Dashboard - " `Text.append` filename
         previewBlock <- liftIO $ preview ident contentType bytes

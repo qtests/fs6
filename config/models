@@ -2,6 +2,8 @@ StoredFile
     name Text
     contentType Text
     content ByteString
+    internal Bool default = True
+    published Bool default = True
     created UTCTime "default=now()"
 Company
     name Text 

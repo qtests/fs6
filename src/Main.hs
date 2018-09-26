@@ -123,7 +123,7 @@ tsDownloadJob tickers timeDelay startDate conpool =
         -- *************************************************
 
         -- Add the output file to the database
-        dbFunction (addTextFile2DB outFile "") conpool 
+        dbFunction (addTextFile2DB outFile "" True True) conpool 
 
         print ("TS Download Job: Going to Sleep!" :: String)
         threadDelay timeDelay
@@ -154,7 +154,7 @@ main = do
     let stDateString = fromMaybe "2000-01-01" $ lookupSectionVariable env "TimeSeries" "startDateBase"
     let startDate = fromJust $ read2MaybeUTCTime "%Y-%m-%d" stDateString
                     
-    let varDateString = fromMaybe "3" $ lookupSectionVariable env "TimeSeries" "startDateVariable"
+    let varDateString = fromMaybe "1" $ lookupSectionVariable env "TimeSeries" "startDateVariable"
     let varDate = fromJust $ read2MaybeInteger varDateString
     timeNow <- getCurrentTime 
     let refreshPeriod = UTCTime (addGregorianMonthsClip (-varDate) (utctDay timeNow)) 0 

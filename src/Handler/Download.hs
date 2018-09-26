@@ -19,7 +19,7 @@ import Model
 getDownloadR :: Key StoredFile -> Handler TypedContent
 getDownloadR ident = do
     -- Attempt to retrieve the file, failing with a 404.
-    StoredFile filename contentType bytes timeCreated <- getById ident
+    StoredFile filename contentType bytes isItInternal toBePublished timeCreated <- getById ident
     -- The Content-Distribution header hints that the resource should be
     -- downloaded as a file.
     addHeader "Content-Disposition" $ Text.concat
