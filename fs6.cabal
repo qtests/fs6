@@ -35,7 +35,7 @@ executable file-processor
                        Yadata.LibAPI
                        -- Utils/Parsers
                        Parsers.INIParser
-  build-depends:       base >= 4.7 && < 5
+  build-depends:       base
                     ,  blaze-markup
                     ,  bytestring
                     ,  conduit
@@ -72,7 +72,7 @@ executable file-processor
                     ,  csv
                     ,  utf8-string
                     ,  Chart
-                    ,  Chart-diagrams
+                    --,  Chart-diagrams
                     ,  Chart-cairo
                     ,  colour
                     -- yadata : end

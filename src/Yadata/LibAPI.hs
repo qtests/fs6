@@ -24,7 +24,7 @@ import Text.CSV
 
 -- import graphics
 import Graphics.Rendering.Chart.Backend.Cairo
-import Graphics.Rendering.Chart.Backend.Diagrams hiding (toFile)
+-- import Graphics.Rendering.Chart.Backend.Diagrams hiding (toFile)
 import Graphics.Rendering.Chart.Easy
 
 

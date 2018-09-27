@@ -98,7 +98,7 @@ tsDownloadJob tickers timeDelay startDate conpool =
         -- *************************************************
 
         -- Add the output file to the database
-        dbFunction (addTextFile2DB outFile "") conpool 
+        dbFunction (addTextFile2DB outFile "" True True) conpool 
 
         print ("TS Download Job: Going to Sleep!" :: String)
         threadDelay timeDelay
@@ -175,7 +175,10 @@ main = do
                         "Utilities", "Health Care",  "Consumer Discretionary", "Technology"]
     xtsList <- forM sectorTks $ \tk -> do 
                                         (timeId, dta, _) <- getDBTS2XTS tk pool
-                                        return $ TS timeId (dta !! 0)
+                                        let tempVar = if ( length dta > 0 ) 
+                                            then dta !! 0
+                                            else []
+                                        return $ TS timeId tempVar
     let xts = foldl (\start (tk, ts) -> combineXTSnTS start tk ts) (XTS [] [] []) (zip sectorNames xtsList)
     -- Do the same above for all tickers
 

@@ -2,6 +2,8 @@ StoredFile
     name Text
     contentType Text
     content ByteString
+    internal Bool default = True
+    published Bool default = True
     created UTCTime "default=now()"
 Company
     name Text 
@@ -18,4 +20,14 @@ TimeSeries
     adjclose Double
     volume Double
     deriving Show Read
+Story
+    hashId Int
+    title Text
+    UniqueTitle title
+    link Text
+    content Text Maybe
+    image Text Maybe
+    created UTCTime "default=now()"
+    deriving Eq Show
+    
     

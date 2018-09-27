@@ -12,7 +12,9 @@ RUN apt-get install -y --assume-yes libpq-dev
 # Install convenience utilities, like tree, ping, and vim.
 RUN apt-get install -y --assume-yes tree iputils-ping vim-nox
 
-# Recently added 
+# Recently added
+RUN apt-get install -y --assume-yes pkg-config libcairo2-dev
+RUN apt-get install -y --assume-yes libssl-dev libcurl4-gnutls-dev  
 RUN apt-get install -y --assume-yes libc6
 
 # Remove apt caches to reduce the size of our container.
