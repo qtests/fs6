@@ -45,13 +45,6 @@ share [mkPersist sqlSettings, mkMigrate "migrateAll"]
     $(persistFileWith lowerCaseSettings "config/models")
 
 
-{- addTextFile2DB :: String -> String -> Bool -> Bool -> ReaderT SqlBackend (LoggingT (ResourceT IO)) ()
-addTextFile2DB fileName filePath isItInternal published = do
-    fileContents <- liftIO $ S.readFile $ filePath ++ fileName
-    time <- liftIO getCurrentTime
-    insert_ $ StoredFile (pack fileName) "text/plain" fileContents isItInternal published time -}
-
-
 upsertStoredFile2DB :: String -> String -> String -> Bool -> Bool -> ReaderT SqlBackend (LoggingT (ResourceT IO)) ()
 upsertStoredFile2DB fileName filePath fileType isItInternal published = do
     fileContents <- liftIO $ S.readFile $ filePath ++ fileName

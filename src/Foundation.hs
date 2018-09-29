@@ -107,7 +107,8 @@ mkYesodData "App" $(parseRoutesFile "config/routes")
 --     store <- liftIO . readTVarIO $ tstore app
 --     return $ IntMap.toList store
 getList :: Handler [Entity StoredFile]
-getList = runDB $ selectList [] []
+-- getList = runDB $ selectList [] []
+getList = runDB $ selectList [StoredFilePublished ==. True] [Asc StoredFileCreated]
 
 -- | Add a new file to the 'Store'.
 addFile :: StoredFile -> Handler ()
@@ -139,3 +140,10 @@ getById ident = do
 -- ******************************************************************************
 getStoryList :: Handler [Entity Story]
 getStoryList = fmap reverse $ runDB $ selectList [] [LimitTo 50, Desc StoryCreated] 
+
+
+-- ******************************************************************************
+-- Main Image
+-- ******************************************************************************
+getMainGraph  :: Handler [Entity StoredFile]
+getMainGraph  = runDB $ selectList [StoredFileName ==. "testFile_picture.png", StoredFileInternal ==. True] [] 

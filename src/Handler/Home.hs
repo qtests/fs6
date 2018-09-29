@@ -31,6 +31,7 @@ getHomeR = do
     -- use this to generate hyperlinks to summary pages.
     storedFiles <- getList
     storedStories <- getStoryList
+    mainGraph <- getMainGraph
     
     defaultLayout $ do
         setTitle "Dashboard"

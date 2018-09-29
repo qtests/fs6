@@ -1,8 +1,8 @@
 
 <h2>Investor Dashboard
 
-$# $forall (Entity ident (StoredFile _ _ _ _ _ _)) <- mainGraph
-$#   <img src=@{DownloadR ident}>
+$forall (Entity ident (StoredFile _ _ _ _ _ _)) <- mainGraph
+  <img src=@{DownloadR ident}>
         
 
 <h3>Latest News

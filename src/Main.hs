@@ -10,10 +10,10 @@ import Database.Persist.Sql (ConnectionPool, SqlBackend, runSqlPool, runMigratio
 import Data.Pool (Pool(..))
 import Data.Maybe (fromJust, isJust, isNothing, fromMaybe)
 import Data.Text (pack)
-import Data.Time (UTCTime(..), getCurrentTime, addGregorianMonthsClip)
+import Data.Time (UTCTime(..), getCurrentTime, addGregorianMonthsClip, formatTime, defaultTimeLocale)
 
  
-import Control.Monad (forever, forM_)
+import Control.Monad (forever, forM_, forM)
 import Control.Monad.Logger (LoggingT, runStderrLoggingT)
 import Control.Monad.Trans.Resource (ResourceT, runResourceT)
 import Control.Monad.Trans.Reader (ReaderT)
@@ -37,10 +37,41 @@ import Text.NewsAPI
 -- https://github.com/agrafix/users
 -- https://github.com/Daiver/HBlog
 
+-- *********************************************************************************************** -- 
+-- Sector picture
+-- *********************************************************************************************** -- 
+
+getDBTS2XTS :: [String] -> [String] -> Int -> ConnectionPool -> IO (XTS Double)
+getDBTS2XTS  [] _ _ _ = return $ XTS [] [] []
+getDBTS2XTS  companyTickers companyNames colNum pool = do
+    xtsList <- forM companyTickers $ \tk -> do 
+        (timeId, dta, _) <- getDBTS2Tup tk pool
+        if timeId == [] || dta == [] 
+            then return $ TS [] []
+            else return $ TS timeId (dta !! colNum)
+    return $ foldl (\start (tk, ts) -> combineXTSnTS start tk ts) (XTS [] [] []) (zip companyNames xtsList)
+
+
+updateMainImage :: [String] -> [String] -> Int -> Int -> ConnectionPool -> IO ()
+updateMainImage companyTickers companyNames colNum timeDelay pool = do
+    threadDelay ( (10^6 * 60 * 1) :: Int )
+    let imgFile = "testFile_picture.png"
+    forever $ do
+            print ("Updatting Main Picture: Start" :: String)
+
+            xts <- getDBTS2XTS  companyTickers companyNames colNum pool
+            plotXTS  imgFile xts
+            dbFunction (upsertStoredFile2DB imgFile "" "image/png" True False) pool 
+
+            print ("Updatting Main Picture: End" :: String)
+            threadDelay timeDelay
+
 
 -- *********************************************************************************************** -- 
 -- News
 -- *********************************************************************************************** -- 
+
+-- Add https://www.scmp.com/news/china/money-wealth
 
 insertStoriesReuters :: Int -> ConnectionPool -> IO ()
 insertStoriesReuters timeDelay pool = 
@@ -110,16 +141,26 @@ tsDownloadJob tickers timeDelay startDate conpool =
                 -- Save to database
                 dbFunction (sendTS2DB ticker ts) conpool 
 
+                -- Save to file
                 dbFunction (queryIdTSSendEm2File ticker outFile) conpool
-                
-        forM_ tickers jobTask
+
+
+        timeNow <- getCurrentTime
+        let hourNow = (read $ formatTime defaultTimeLocale "%k" timeNow) :: Int
+        if  (hourNow < 2 || (hourNow > 16 && hourNow < 23) )
+                            then 
+                                do 
+                                    forM_ tickers jobTask
+
+                                    -- Add the output file to the database
+                                    dbFunction (upsertStoredFile2DB outFile "" "text/plain" True True) conpool 
+                            else  return ()
+    
 
         -- *************************************************
         -- Think about the report !
         -- *************************************************
 
-        -- Add the output file to the database
-        dbFunction (upsertStoredFile2DB outFile "" "text/plain" True True) conpool 
 
         print ("TS Download Job: Going to Sleep!" :: String)
         threadDelay timeDelay
@@ -147,7 +188,7 @@ main = do
     let env = fst $ fromJust iniContents
 
     -- Time Series start date
-    let stDateString = fromMaybe "2000-01-01" $ lookupSectionVariable env "TimeSeries" "startDateBase"
+    let stDateString = fromMaybe "2015-01-01" $ lookupSectionVariable env "TimeSeries" "startDateBase"
     let startDate = fromJust $ read2MaybeUTCTime "%Y-%m-%d" stDateString
                     
     let varDateString = fromMaybe "1" $ lookupSectionVariable env "TimeSeries" "startDateVariable"
@@ -172,15 +213,18 @@ main = do
 
 
     -- Picture
-    let sectorTks_ = ["XLB", "XLE", "XLF", "XLI", "XLP", "XLU", "XLV", "XLY", "XLK"]
-    let sectorNames_ = ["Materials", "Energy", "Finance", "Industrials", "Consumer Staples", 
+    let sectorTks = ["XLB", "XLE", "XLF", "XLI", "XLP", "XLU", "XLV", "XLY", "XLK"]
+    let sectorNames = ["Materials", "Energy", "Finance", "Industrials", "Consumer Staples", 
                         "Utilities", "Health Care",  "Consumer Discretionary", "Technology"]
    
-
+    
+    -- Plot picture
+    let timeDelayMI = (10^6 * 3600 * 24) :: Int
+    _ <- forkIO $ updateMainImage sectorTks sectorNames 0 timeDelayMI pool
 
     -- Download/Update price time series
     let sleepTimeTS = (10^6 * 3600 * 6) :: Int
-    _ <- forkIO $ tsDownloadJob sectorTks_ sleepTimeTS refreshPeriod pool
+    _ <- forkIO $ tsDownloadJob sectorTks sleepTimeTS refreshPeriod pool
 
     -- Stories
     let sleepTimeSR = (10^6 * 60 * 30) :: Int
