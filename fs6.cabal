@@ -75,6 +75,9 @@ executable file-processor
                     ,  wreq
                     ,  csv
                     ,  utf8-string
+                    ,  Chart
+                    ,  Chart-cairo
+                    ,  colour
                     -- News
                     , aeson
                     , hashable

@@ -5,6 +5,10 @@ module Yadata.LibAPI
 (
        downloadH2File
     ,  priceTimeSeriesWithDate
+    ,  plotXTS
+    ,  combineXTSnTS
+    ,  XTS(..)
+    ,  TS(..)
 )
 where
 
@@ -17,10 +21,21 @@ import qualified Data.ByteString.Lazy.Char8 as C
 import qualified Data.ByteString.Lazy.UTF8 as DBLU
 import Text.CSV
 
+
+-- import graphics
+import Graphics.Rendering.Chart.Backend.Cairo
+-- import Graphics.Rendering.Chart.Backend.Diagrams hiding (toFile)
+import Graphics.Rendering.Chart.Easy
+
+
 import Data.Time
 import Data.Maybe
 import Data.Either
 import Data.List
+import Data.Colour
+
+import Control.Monad (forM_)
+
 
 
 priceTimeSeries :: String -> IO (Either String [(UTCTime, Double)] )
@@ -107,3 +122,40 @@ downloadH2File tickers = do
     return ()
 
 -- downloadH2File ["IBM", "MSFT", "AAPL", "KO" ]
+
+myLine :: String -> [[(x,y)]] -> Colour Double -> EC l (PlotLines x y)
+myLine title values col = liftEC $ do
+    let color = opaque col -- <- takeColor
+    plot_lines_title .= title
+    plot_lines_values .= values
+    plot_lines_style . line_color .= color
+
+
+
+plotXTS :: (Num a, PlotValue a)=> String -> XTS a -> IO ()
+plotXTS plotFileName (XTS xindex xdata xcolNames) = do
+    let colourNames = cycle [blue,green,red, black, turquoise, teal, magenta, orange, brown, pink, violet]
+    let xin = fmap (utcToLocalTime utc) xindex
+    let prepData = fmap (\x-> zip xin x ) xdata
+    toFile def plotFileName $ do
+        forM_ (zip3 xcolNames prepData colourNames) $ \(cname, dta, cl) -> do
+            plot (myLine cname [ dta ] cl)
+    return ()
+
+
+-- | FilePath was testFile_strat_plot.svg
+createGraphForNewsletter :: [String] -> FilePath -> IO ()
+createGraphForNewsletter companyList filepath = do
+    (xts, _) <- downDataExt companyList [] (createXTSRaw [] [] [])
+    let (XTS indx prices conames) = xts
+    let maLong = movingAverageXTS 250 xts
+    let maShort = movingAverageXTS 20 xts
+    let s1 = (zipWith . zipWith) (>) prices (fst $ dataXTS maLong)
+    let s2 = (zipWith . zipWith) (>) prices (fst $ dataXTS maShort)
+    let sig = (fmap . fmap) (\x -> if x then 1.0 else 0.0) $
+         (zipWith . zipWith) (&&) s2 s1
+    let (XTS _ diffx _)  = logdiffXTS xts
+    let perf =  fmap (scanl1 (+)) $ (zipWith . zipWith) (*) diffx sig
+    plotXTS filepath $ takeColXTS 5 $ XTS indx perf conames
+
+    return ()
