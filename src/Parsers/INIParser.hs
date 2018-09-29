@@ -104,9 +104,9 @@ char c = conditional (== c)
 
 bracketed :: Parser a -> Parser b -> Parser c -> Parser b
 bracketed pa pb pc = do
-  pa
+  _ <- pa
   b <- pb
-  pc
+  _ <- pc
   return b
 
 bracketOpen :: Parser Char
@@ -158,11 +158,11 @@ value = name <|> quotedvalue
 
 assignment :: Parser (String,String)
 assignment = do
-  whitespaces
+  _ <- whitespaces
   name <- name
-  whitespaces
-  char '='
-  whitespaces
+  _ <- whitespaces
+  _ <- char '='
+  _ <- whitespaces
   value <- value
   return (name, value)
 

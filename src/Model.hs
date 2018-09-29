@@ -9,6 +9,7 @@
 {-# LANGUAGE FlexibleInstances          #-}
 
 module Model 
+
 where
 
 import Data.ByteString (ByteString)
@@ -16,19 +17,22 @@ import Data.Text (Text, concat, unpack)
 import Database.Persist.Quasi
 import qualified Database.Persist as P
 import Yesod
-import Data.Typeable ()
-import Data.Time
+
 
 import Control.Monad.Trans.Reader (ReaderT)
-import Database.Persist.Sql (SqlBackend)
-import Control.Monad.Logger (LoggingT)
-import Control.Monad.Trans.Resource (ResourceT)
+import Database.Persist.Sql (SqlBackend, ConnectionPool, runSqlPool)
+import Control.Monad.Logger (LoggingT, runStderrLoggingT)
+import Control.Monad.Trans.Resource (ResourceT, runResourceT)
 -- https://hackage.haskell.org/package/bytestring-0.10.8.2/docs/Data-ByteString.html
 import qualified Data.ByteString as S
 import Data.Text (pack)
 import Data.List (intercalate)
 import Data.Maybe (fromJust, isJust)
 import Data.List (transpose, zipWith5)
+import Data.Typeable ()
+import Data.Time
+import Data.Pool (Pool(..))
+
 import Control.Monad (forM_)
 
 -- News
@@ -41,11 +45,23 @@ share [mkPersist sqlSettings, mkMigrate "migrateAll"]
     $(persistFileWith lowerCaseSettings "config/models")
 
 
-addTextFile2DB :: String -> String -> Bool -> Bool -> ReaderT SqlBackend (LoggingT (ResourceT IO)) ()
+{- addTextFile2DB :: String -> String -> Bool -> Bool -> ReaderT SqlBackend (LoggingT (ResourceT IO)) ()
 addTextFile2DB fileName filePath isItInternal published = do
     fileContents <- liftIO $ S.readFile $ filePath ++ fileName
     time <- liftIO getCurrentTime
-    insert_ $ StoredFile (pack fileName) "text/plain" fileContents isItInternal published time
+    insert_ $ StoredFile (pack fileName) "text/plain" fileContents isItInternal published time -}
+
+
+upsertStoredFile2DB :: String -> String -> String -> Bool -> Bool -> ReaderT SqlBackend (LoggingT (ResourceT IO)) ()
+upsertStoredFile2DB fileName filePath fileType isItInternal published = do
+    fileContents <- liftIO $ S.readFile $ filePath ++ fileName
+    time <- liftIO getCurrentTime
+    fid <- selectFirst [StoredFileName ==. (pack fileName), StoredFileInternal ==. isItInternal] [Desc StoredFileCreated]
+    case fid of 
+        Nothing                -> insert_ $ 
+                    StoredFile (pack fileName) (pack fileType) fileContents isItInternal published time
+        Just (Entity fileId _) -> replace fileId $ 
+                    StoredFile (pack fileName) (pack fileType) fileContents isItInternal published time
 
 
 sendTS2File :: String -> String -> Bool -> Either String [(UTCTime, [Double])] -> IO ()
@@ -99,6 +115,43 @@ buildDb name website ticker startDate = do
                         forM_ dbts insert_ 
 
         Just (Entity companyId cpny) -> liftIO $ print cpny
+
+
+-- Get company id from the Company table
+getCompanyID :: String -> Bool ->  ReaderT SqlBackend (LoggingT (ResourceT IO)) ( Maybe (Key Company) )
+getCompanyID ticker active = do 
+    maybeCpny <- getBy $ UniqueTicker (pack ticker) active
+    if (isJust maybeCpny)   
+        then
+            return $ fmap(\(Entity companyId _) -> companyId) maybeCpny
+        else
+            return Nothing
+
+
+
+-- Query time series from TimeSeries table
+getCompanyRawTS :: Key Company -> ReaderT SqlBackend (LoggingT (ResourceT IO)) ( [(UTCTime, [Double])] )
+getCompanyRawTS companyId = do
+    tsRecords <- selectList [TimeSeriesTsid ==. companyId ] [ Asc TimeSeriesRefdate ]
+    return $ fmap (\(Entity _ (TimeSeries _ refDate close adjclose vol)) -> 
+                                                        (refDate, [close, adjclose, vol]) ) tsRecords
+
+
+
+dbFunction :: ReaderT SqlBackend (LoggingT (ResourceT IO)) a -> Pool SqlBackend  -> IO a
+dbFunction query pool = runResourceT $ runStderrLoggingT $ runSqlPool query pool
+
+
+
+getDBTS2Tup :: String -> ConnectionPool -> IO ( ([UTCTime], [[Double]], [String]) )
+getDBTS2Tup ticker conpool = do
+    cid <- dbFunction (getCompanyID ticker True) conpool
+    case cid of 
+        Nothing   -> return $ ([], [], [])
+        Just id   -> do
+            ts <- dbFunction (getCompanyRawTS id) conpool
+            let (index, dta) = unzip ts
+            return ( index,  (transpose dta),  ["Close", "Adjclose", "Volume"])
 
 -- **********************************************************************
 -- News

@@ -38,10 +38,6 @@ import Text.NewsAPI
 -- https://github.com/Daiver/HBlog
 
 
-dbFunction :: ReaderT SqlBackend (LoggingT (ResourceT IO)) a -> Pool SqlBackend  -> IO a
-dbFunction query pool = runResourceT $ runStderrLoggingT $ runSqlPool query pool
-
-
 -- *********************************************************************************************** -- 
 -- News
 -- *********************************************************************************************** -- 
@@ -123,7 +119,7 @@ tsDownloadJob tickers timeDelay startDate conpool =
         -- *************************************************
 
         -- Add the output file to the database
-        dbFunction (addTextFile2DB outFile "" True True) conpool 
+        dbFunction (upsertStoredFile2DB outFile "" "text/plain" True True) conpool 
 
         print ("TS Download Job: Going to Sleep!" :: String)
         threadDelay timeDelay
@@ -163,18 +159,28 @@ main = do
     -- Build the initial DB
     dbFunction (runMigration migrateAll) pool
 
-    flip dbFunction pool (buildDb "IBM Inc."        "www.ibm.com"       "IBM"  startDate)
-    flip dbFunction pool (buildDb "Microsoft Inc."  "www.microsoft.com" "MSFT" startDate)
 
-    -- flip dbFunction pool (buildDb "Facebook, Inc."   "www.facebook.com" "FB"    startDate)
-    -- flip dbFunction pool (buildDb "Amazon.com, Inc." "www.amazon.com"   "AMZN"  startDate)
-    -- flip dbFunction pool (buildDb "Netflix, Inc."    "www.netflix.com"  "NFLX"  startDate)
-    -- flip dbFunction pool (buildDb "Alphabet Inc."    "www.abc.xyz"      "GOOGL" startDate)
+    flip dbFunction pool (buildDb "SPDR Materials"      "http://www.spdrs.com" "XLB"   startDate)
+    flip dbFunction pool (buildDb "SPDR Energy"         "http://www.spdrs.com" "XLE"   startDate)
+    flip dbFunction pool (buildDb "SPDR Finance"        "http://www.spdrs.com" "XLF"   startDate)
+    flip dbFunction pool (buildDb "SPDR Industrials"    "http://www.spdrs.com" "XLI"   startDate)
+    flip dbFunction pool (buildDb "SPDR Consumer Staples" "http://www.spdrs.com" "XLP" startDate)
+    flip dbFunction pool (buildDb "SPDR Utilities"      "http://www.spdrs.com" "XLU"   startDate)
+    flip dbFunction pool (buildDb "SPDR Health Care"    "http://www.spdrs.com" "XLV"   startDate)
+    flip dbFunction pool (buildDb "SPDR Consumer Discretionary" "http://www.spdrs.com" "XLY" startDate)
+    flip dbFunction pool (buildDb "SPDR Technology"     "http://www.spdrs.com"         "XLK" startDate)
+
+
+    -- Picture
+    let sectorTks_ = ["XLB", "XLE", "XLF", "XLI", "XLP", "XLU", "XLV", "XLY", "XLK"]
+    let sectorNames_ = ["Materials", "Energy", "Finance", "Industrials", "Consumer Staples", 
+                        "Utilities", "Health Care",  "Consumer Discretionary", "Technology"]
+   
 
 
     -- Download/Update price time series
     let sleepTimeTS = (10^6 * 3600 * 6) :: Int
-    _ <- forkIO $ tsDownloadJob ["IBM", "MSFT"] sleepTimeTS refreshPeriod pool
+    _ <- forkIO $ tsDownloadJob sectorTks_ sleepTimeTS refreshPeriod pool
 
     -- Stories
     let sleepTimeSR = (10^6 * 60 * 30) :: Int

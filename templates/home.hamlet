@@ -1,4 +1,10 @@
 
+<h2>Investor Dashboard
+
+$# $forall (Entity ident (StoredFile _ _ _ _ _ _)) <- mainGraph
+$#   <img src=@{DownloadR ident}>
+        
+
 <h3>Latest News
 $if null storedStories
   <p>No news so far...
@@ -16,7 +22,7 @@ $if null storedFiles
 $else
   <ul>
 $#    $forall (ident, StoredFile filename _ _) <- storedFiles
-    $forall (Entity ident (StoredFile filename _ _  _ _ timeCreated)) <- storedFiles
+    $forall (Entity ident (StoredFile filename _ _ _ _ timeCreated)) <- storedFiles
       <li>
         #{formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S %Z" timeCreated} 
         <a href=@{PreviewR ident}>#{filename}
@@ -26,4 +32,5 @@ $#    $forall (ident, StoredFile filename _ _) <- storedFiles
 <form method=post action=@{HomeR} enctype=#{formEncType}>
   ^{formWidget}
   <input type="submit" value="Upload">
+
 
