@@ -13,8 +13,9 @@ RUN apt-get install -y --assume-yes libpq-dev
 RUN apt-get install -y --assume-yes tree iputils-ping vim-nox
 
 # Recently added 
-RUN apt-get install -y --assume-yes libc6 libssl-dev libcurl4-gnutls-dev
 RUN apt-get install -y --assume-yes pkg-config libcairo2-dev
+RUN apt-get install -y --assume-yes libssl-dev libcurl4-gnutls-dev
+RUN apt-get install -y --assume-yes libc6 
 
 # Remove apt caches to reduce the size of our container.
 RUN rm -rf /var/lib/apt/lists/*

@@ -100,8 +100,8 @@ sendTS2DB ticker (Right timeSeries) = do
 buildDb :: Text -> Text -> Text -> UTCTime -> ReaderT SqlBackend (LoggingT (ResourceT IO)) ( )
 buildDb name website ticker startDate = do
 
-    maybeIBM <- getBy $ UniqueTicker ticker True
-    case maybeIBM of
+    maybeCompany <- getBy $ UniqueTicker ticker True
+    case maybeCompany of
         Nothing -> do
                         liftIO $ putStrLn $ unpack $ Data.Text.concat ["Just kidding, ", name, " is not really there !"]
                         companyId <- insert $ Company name website ticker True

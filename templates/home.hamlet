@@ -1,6 +1,8 @@
 
 <h2>Investor Dashboard
 
+<img src=@{StaticR testFile_picture_png} alt="Financial sectors' price graph" height="600" width="800"/> 
+
 $# $forall (Entity ident (StoredFile _ _ _ _ _ _)) <- mainGraph
 $#   <img src=@{DownloadR ident}>
         

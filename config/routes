@@ -4,3 +4,4 @@
 /                            HomeR     GET POST
 /file/#StoredFileId          PreviewR  GET
 /file/#StoredFileId/download DownloadR GET
+/static StaticR Static getStatic

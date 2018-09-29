@@ -6,14 +6,17 @@ module Main where
 -- import Control.Concurrent.STM
 -- import Data.IntMap
 import Yesod
+import Yesod.Static
+
 import Database.Persist.Sql (ConnectionPool, SqlBackend, runSqlPool, runMigration)
 import Data.Pool (Pool(..))
 import Data.Maybe (fromJust, isJust, isNothing, fromMaybe)
 import Data.Text (pack)
 import Data.Time (UTCTime(..), getCurrentTime, addGregorianMonthsClip)
+import Data.List(transpose)
 
  
-import Control.Monad (forever, forM_)
+import Control.Monad (forever, forM_, forM)
 import Control.Monad.Logger (LoggingT, runStderrLoggingT)
 import Control.Monad.Trans.Resource (ResourceT, runResourceT)
 import Control.Monad.Trans.Reader (ReaderT)
@@ -125,6 +128,17 @@ tsDownloadJob tickers timeDelay startDate conpool =
         threadDelay timeDelay
 
 
+getDBTS2XTS :: String -> ConnectionPool -> IO ( ([UTCTime], [[Double]], [String]) )
+getDBTS2XTS ticker conpool = do
+    cid <- dbFunction (getCompanyID ticker True) conpool
+    case cid of 
+        Nothing   -> return $ ([], [], [])
+        Just id   -> do
+            ts <- dbFunction (getCompanyRawTS id) conpool
+            let (index, dta) = unzip ts
+            return ( index,  (transpose dta),  ["Close", "Adjclose", "Volume"])
+
+
 main :: IO ()
 main = do
     
@@ -172,21 +186,33 @@ main = do
 
 
     -- Picture
-    let sectorTks_ = ["XLB", "XLE", "XLF", "XLI", "XLP", "XLU", "XLV", "XLY", "XLK"]
-    let sectorNames_ = ["Materials", "Energy", "Finance", "Industrials", "Consumer Staples", 
+    let sectorTks = ["XLB", "XLE", "XLF", "XLI", "XLP", "XLU", "XLV", "XLY", "XLK"]
+    let sectorNames = ["Materials", "Energy", "Finance", "Industrials", "Consumer Staples", 
                         "Utilities", "Health Care",  "Consumer Discretionary", "Technology"]
    
+    xtsList <- forM sectorTks $ \tk -> do 
+                                        (timeId, dta, _) <- getDBTS2XTS tk pool
+                                        let tempVar = if ( length dta > 0 ) 
+                                            then dta !! 0
+                                            else []
+                                        return $ TS timeId tempVar
+    let xts = foldl (\start (tk, ts) -> combineXTSnTS start tk ts) (XTS [] [] []) (zip sectorNames xtsList)
+        
+    -- Plot picture
+    plotXTS "testFile_picture.png" xts
 
 
     -- Download/Update price time series
     let sleepTimeTS = (10^6 * 3600 * 6) :: Int
-    _ <- forkIO $ tsDownloadJob sectorTks_ sleepTimeTS refreshPeriod pool
+    _ <- forkIO $ tsDownloadJob sectorTks sleepTimeTS refreshPeriod pool
 
     -- Stories
     let sleepTimeSR = (10^6 * 60 * 30) :: Int
     _ <- forkIO $ insertStoriesReuters sleepTimeSR pool
  
+    static@(Static settings) <- static "."
+
     -- Starting the web server
     port <- readEnvDef "PORT" 8080
     -- warp port $ App tident tstore pool persistConfig
-    warp port $ App pool persistConfig
+    warp port $ App pool persistConfig static

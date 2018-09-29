@@ -14,6 +14,7 @@ import Data.Default
 import Yesod
 import Yesod.Default.Util
 
+
 import Data.Time
 
 import Foundation
@@ -31,7 +32,7 @@ getHomeR = do
     -- use this to generate hyperlinks to summary pages.
     storedFiles <- getList
     storedStories <- getStoryList
-    
+        
     defaultLayout $ do
         setTitle "Dashboard"
         -- Load the widget defined in "templates/home.hamlet".

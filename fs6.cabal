@@ -58,6 +58,7 @@ executable file-processor
                     ,  text
                     ,  time
                     ,  yesod
+                    ,  yesod-static
                     ,  persistent 
                     -- 
                     ,  persistent-postgresql
